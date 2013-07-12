@@ -118,8 +118,8 @@ const wordBound = ` `
 
 // Fuzzy string search with algorithm similar to the official Chii[AR] IRC bot.
 //
-// First attempts an exact search. Otherwise tries, in order, the following
-// alternate matches:
+// First attempts an exact search. Otherwise, uses strings.Fields to split the string
+// into words and tries, in order, the following alternate matches:
 //
 // * Initial words (prefix, but ending at word boundary)
 //
