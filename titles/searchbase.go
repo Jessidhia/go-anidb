@@ -4,9 +4,10 @@ import (
 	"sync"
 )
 
+// An arbitrary search match
 type SearchMatch struct {
-	Matched string
-	AID     int
+	Matched string // The title that was matched
+	AID     AID    // The AID the Matched title belongs to
 }
 
 type SearchMatches []SearchMatch
@@ -14,7 +15,7 @@ type SearchMatches []SearchMatch
 func searchFunc(wg *sync.WaitGroup, ret chan SearchMatch, t *TitleMap, cmp func(string) bool) {
 	defer wg.Done()
 
-	for _, m := range []map[string]int{t.ShortMap, t.OfficialMap, t.SynonymMap} {
+	for _, m := range []map[string]AID{t.ShortMap, t.OfficialMap, t.SynonymMap} {
 		for k, v := range m {
 			if cmp(k) {
 				ret <- SearchMatch{Matched: k, AID: v}

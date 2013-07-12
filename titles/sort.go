@@ -4,12 +4,21 @@ import (
 	"sort"
 )
 
+// Sorts the given Results.
 func (cmp ResultComparer) Sort(res Results) {
 	sorter := &resultSorter{
 		res: res,
 		by:  cmp,
 	}
 	sort.Sort(sorter)
+}
+
+func (cmp ResultComparer) ReverseSort(res Results) {
+	sorter := &resultSorter{
+		res: res,
+		by:  cmp,
+	}
+	sort.Sort(sort.Reverse(sorter))
 }
 
 type resultSorter struct {

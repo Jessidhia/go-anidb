@@ -1,11 +1,12 @@
 package titles
 
-// import "sync"
-
+// Returns true if the given *Anime should be included in the final ResultSet
 type ResultFilter func(*Anime) bool
 
+// Returns true if the Anime with the given title should be included in the final ResultSet
 type TitleComparer func(string) bool
 
+// Filters a ResultSet according to the given TitleComparer; returns the filtered ResultSet
 func (rs ResultSet) FilterByTitles(cmp TitleComparer) ResultSet {
 	return rs.Filter(
 		func(a *Anime) bool {
@@ -28,6 +29,7 @@ func (rs ResultSet) FilterByTitles(cmp TitleComparer) ResultSet {
 		})
 }
 
+// Filters a ResultSet according to the given ResultFilter; returns the filtered ResultSet
 func (rs ResultSet) Filter(filter ResultFilter) ResultSet {
 	ret := ResultSet{}
 	for _, a := range rs {
