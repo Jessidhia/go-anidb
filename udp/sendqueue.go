@@ -1,4 +1,4 @@
-package udp
+package udpapi
 
 import (
 	"time"

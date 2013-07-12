@@ -5,7 +5,7 @@
 //
 // This library doesn't implement caching; beware since aggressive caching is an
 // implementation requirement. Not doing so can get you banned.
-package udp
+package udpapi
 
 import (
 	"bytes"
@@ -30,9 +30,14 @@ const (
 )
 
 type AniDBUDP struct {
-	KeepAliveInterval time.Duration // Interval between keep-alive packets; only sent when PUSH notifications are enabled (default: 20 minutes)
-	Timeout           time.Duration // The time to wait before a packet is considered lost (default: 45 seconds)
-	Notifications     chan APIReply // Channel where PUSH notifications are sent to
+	// Interval between keep-alive packets; only sent when PUSH notifications are enabled (default: 20 minutes)
+	KeepAliveInterval time.Duration
+
+	// The time to wait before a packet is considered lost (default: 45 seconds)
+	Timeout time.Duration
+
+	// Channel where PUSH notifications are sent to
+	Notifications chan APIReply
 
 	session string
 

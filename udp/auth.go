@@ -1,4 +1,4 @@
-package udp
+package udpapi
 
 // Authenticates the supplied user with the supplied password. Blocks until we have a reply.
 // Needed before almost any other API command can be used.
