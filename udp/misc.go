@@ -1,9 +1,17 @@
 package udpapi
 
 import (
+	"encoding/gob"
 	"strconv"
 	"time"
 )
+
+func init() {
+	// implements APIReply
+	gob.RegisterName("udpapi.UptimeReply", UptimeReply{})
+	// implements APIReply
+	gob.RegisterName("udpapi.PingReply", PingReply{})
+}
 
 type UptimeReply struct {
 	APIReply
