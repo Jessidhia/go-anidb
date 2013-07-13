@@ -103,6 +103,10 @@ func (a *AniDBUDP) SendRecv(command string, args ParamMap) <-chan APIReply {
 	if a.session != "" {
 		args["s"] = a.session
 	}
+	for k, v := range args {
+		v = strings.Replace(v, "\n", "<br/>", -1)
+		args[k] = strings.Replace(v, "&", "&amp;", -1)
+	}
 
 	if err := a.dial(); err != nil {
 		ch <- newErrorWrapper(err)
