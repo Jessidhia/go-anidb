@@ -8,14 +8,9 @@
 package udpapi
 
 import (
-	"bytes"
 	"compress/zlib"
-	"crypto/aes"
-	"crypto/cipher"
-	"crypto/md5"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"log"
 	"net"
 	"sort"
@@ -104,17 +99,18 @@ func (a *AniDBUDP) SendRecv(command string, args ParamMap) <-chan APIReply {
 		args["s"] = a.session
 	}
 	for k, v := range args {
-		v = strings.Replace(v, "\n", "<br/>", -1)
-		args[k] = strings.Replace(v, "&", "&amp;", -1)
+		s := fmt.Sprint(v)
+		s = strings.Replace(s, "\n", "<br/>", -1)
+		args[k] = strings.Replace(s, "&", "&amp;", -1)
 	}
+
+	ch := make(chan APIReply, 1)
 
 	if err := a.dial(); err != nil {
 		ch <- newErrorWrapper(err)
 		close(ch)
 		return ch
 	}
-
-	ch := make(chan APIReply, 1)
 
 	a.routerLock.Lock()
 	a.tagRouter[tag] = ch
@@ -192,13 +188,7 @@ func (a *AniDBUDP) send(command string, args ParamMap) chan bool {
 
 	p := makePacket([]byte(str), a.ecb)
 
-	sendPacket(p, a.sendCh)
-}
-
-type packet struct {
-	b    []byte
-	err  error
-	sent chan bool
+	return sendPacket(p, a.sendCh)
 }
 
 func (a *AniDBUDP) sendLoop() {
@@ -286,7 +276,7 @@ func (a *AniDBUDP) recvLoop() {
 					if c >= 720 && c < 799 {
 						// notices that need PUSHACK
 						id := strings.Fields(r.Text())[0]
-						a.send("PUSHACK", paramMap{"nid": id})
+						a.send("PUSHACK", ParamMap{"nid": id})
 
 						a.Notifications <- r
 					} else if c == 799 {

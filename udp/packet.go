@@ -8,6 +8,12 @@ import (
 	"net"
 )
 
+type packet struct {
+	b    []byte
+	err  error
+	sent chan bool
+}
+
 func getPacket(conn *net.UDPConn, ecb *ecbState) (buf []byte, err error) {
 	buf = make([]byte, 1500)
 	n, err := conn.Read(buf)

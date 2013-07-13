@@ -1,5 +1,10 @@
 package udpapi
 
+import (
+	"strconv"
+	"time"
+)
+
 type UptimeReply struct {
 	APIReply
 	Uptime time.Duration
@@ -12,9 +17,9 @@ type UptimeReply struct {
 //
 // http://wiki.anidb.net/w/UDP_API_Definition#UPTIME:_Retrieve_Server_Uptime
 func (a *AniDBUDP) Uptime() <-chan UptimeReply {
-	ch := make(chan *UptimeReply, 2)
+	ch := make(chan UptimeReply, 2)
 	go func() {
-		reply := <-a.SendRecv("UPTIME", paramMap{})
+		reply := <-a.SendRecv("UPTIME", ParamMap{})
 
 		r := UptimeReply{APIReply: reply}
 		if r.Error() == nil {
@@ -39,9 +44,9 @@ type PingReply struct {
 //
 // http://wiki.anidb.net/w/UDP_API_Definition#PING:_Ping_Command
 func (a *AniDBUDP) Ping() <-chan PingReply {
-	ch := make(chan *PingReply, 2)
+	ch := make(chan PingReply, 2)
 	go func() {
-		reply := <-a.SendRecv("PING", paramMap{"nat": 1})
+		reply := <-a.SendRecv("PING", ParamMap{"nat": 1})
 
 		r := PingReply{APIReply: reply}
 		if r.Error() == nil {

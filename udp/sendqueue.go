@@ -4,11 +4,6 @@ import (
 	"time"
 )
 
-type packet struct {
-	/*...*/
-	sent chan bool
-}
-
 type enqueuedPacket struct {
 	packet
 	queue chan packet
@@ -35,9 +30,10 @@ const (
 	throttleDecInterval = 10 * time.Second
 )
 
-func sendPacket(p packet, c chan packet) {
+func sendPacket(p packet, c chan packet) chan bool {
 	p.sent = make(chan bool, 2)
 	globalQueue.enqueue <- enqueuedPacket{packet: p, queue: c}
+	return p.sent
 }
 
 func (gq *sendQueueState) sendQueueDispatch() {

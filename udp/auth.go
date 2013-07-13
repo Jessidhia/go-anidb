@@ -1,5 +1,9 @@
 package udpapi
 
+import (
+	"strings"
+)
+
 // Authenticates the supplied user with the supplied password. Blocks until we have a reply.
 // Needed before almost any other API command can be used.
 //
@@ -17,12 +21,12 @@ func (a *AniDBUDP) Auth(user, password, udpKey string) (err error) {
 	}
 
 	a.session = ""
-	if udpkey != "" {
+	if udpKey != "" {
 		if err = a.encrypt(user, udpKey); err != nil {
 			return err
 		}
 	}
-	r := <-a.SendRecv("AUTH", paramMap{
+	r := <-a.SendRecv("AUTH", ParamMap{
 		"user":      user,
 		"pass":      password,
 		"protover":  3,
@@ -44,13 +48,13 @@ func (a *AniDBUDP) Auth(user, password, udpKey string) (err error) {
 //
 // http://wiki.anidb.net/w/UDP_API_Definition#LOGOUT:_Logout
 func (a *AniDBUDP) Logout() (err error) {
-	r := <-a.SendRecv("LOGOUT", paramMap{})
+	r := <-a.SendRecv("LOGOUT", ParamMap{})
 	a.session = ""
 	return r.Error()
 }
 
 func (a *AniDBUDP) encrypt(user, udpKey string) (err error) {
-	if reply := <-a.SendRecv("ENCRYPT", paramMap{"user": user, "type": 1}); reply.Error() != nil {
+	if reply := <-a.SendRecv("ENCRYPT", ParamMap{"user": user, "type": 1}); reply.Error() != nil {
 		return reply.Error()
 	} else {
 		switch reply.Code() {

@@ -2,17 +2,17 @@ package udpapi
 
 import (
 	"errors"
-	"reflect"
+	"fmt"
 	"strconv"
 	"strings"
 )
 
-type apiError struct {
+type APIError struct {
 	Code int
 	Desc string
 }
 
-func (err *apiError) Error() string {
+func (err *APIError) Error() string {
 	return fmt.Sprint(err.Code, err.Desc)
 }
 
@@ -47,7 +47,7 @@ func (_ *errorWrapper) Tag() string {
 	return ""
 }
 
-func (_ *errorWrapper) Code() int {
+func (w *errorWrapper) Code() int {
 	switch e := w.err.(type) {
 	case *APIError:
 		return e.Code
@@ -128,11 +128,11 @@ func newGenericReply(raw []byte) (r *genericReply) {
 		text = strings.Join(parts[1:], " ")
 	}
 
-	var e *apiError = nil
+	var e *APIError = nil
 	// 720-799 range is for notifications
 	// 799 is an API server shutdown notice, so I guess it's okay to be an error
 	if code < 200 || (code > 299 && code < 720) || code > 798 {
-		e = &apiError{Code: int(code), Desc: text}
+		e = &APIError{Code: int(code), Desc: text}
 	}
 
 	return &genericReply{
