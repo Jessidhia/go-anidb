@@ -132,7 +132,7 @@ func (a *AniDBUDP) SendRecv(command string, args ParamMap) <-chan APIReply {
 			a.routerLock.Unlock()
 			close(ch)
 
-			reply <- TimeoutError
+			reply <- newErrorWrapper(TimeoutError)
 			close(reply)
 
 			log.Println("!!! Timeout")

@@ -1,6 +1,7 @@
 package udpapi
 
 import (
+	"errors"
 	"reflect"
 	"strconv"
 	"strings"
@@ -92,10 +93,9 @@ type genericReply struct {
 	err       error
 }
 
-// Don't expose the newGenericReply call in the documentation
-var timeoutResponse = newGenericReply([]byte("604 TIMEOUT - DELAY AND RESUBMIT"))
-
-var TimeoutError = APIReply(timeoutResponse) // API response "604 TIMEOUT - DELAY AND RESUBMIT", also generated on client-side timeouts
+// The value APIReply.Error() returns after a timeout.
+// Unrelated to the server-side error 604 TIMEOUT - DELAY AND RESUBMIT.
+var TimeoutError = errors.New("Timeout")
 
 func newGenericReply(raw []byte) (r *genericReply) {
 	str := string(raw)
@@ -126,11 +126,6 @@ func newGenericReply(raw []byte) (r *genericReply) {
 		}
 	} else if len(parts) > 1 {
 		text = strings.Join(parts[1:], " ")
-	}
-
-	// Make sure server-side timeouts are comparable against TimeoutError
-	if code == timeoutResponse.code {
-		return timeoutResponse
 	}
 
 	var e *apiError = nil
