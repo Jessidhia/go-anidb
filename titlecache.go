@@ -35,7 +35,7 @@ func LoadTitles(src io.Reader) error {
 }
 
 // Saves the currently cached anime-titles database to the given io.Writer.
-func (adb *AniDB) SaveCurrentTitles(dst io.Writer) (int64, error) {
+func DumpTitles(dst io.Writer) (int64, error) {
 	return io.Copy(dst, bytes.NewReader(titlesFileData))
 }
 
