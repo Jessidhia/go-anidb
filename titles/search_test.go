@@ -25,6 +25,12 @@ type TestVector struct {
 	AIDs  []titles.AID
 }
 
+func TestDB(T *testing.T) {
+	if db.UpdateTime.IsZero() {
+		T.Error("Error reading anime-titles database")
+	}
+}
+
 func TestFuzzySearch(T *testing.T) {
 	// Each vector goes one step deeper in the fuzzy search stack
 	vec := []TestVector{
