@@ -10,12 +10,12 @@ import (
 var db = &titles.TitlesDatabase{}
 
 func init() {
-	if fh, err := os.Open("anime-titles.dat.gz"); err != nil {
-		if fh, err = os.Open("anime-titles.dat"); err != nil {
-			panic(err)
-		}
-
+	if fh, err := os.Open("anime-titles.dat.gz"); err == nil {
 		db.LoadDB(fh)
+	} else if fh, err = os.Open("anime-titles.dat"); err == nil {
+		db.LoadDB(fh)
+	} else {
+		panic(err)
 	}
 }
 
