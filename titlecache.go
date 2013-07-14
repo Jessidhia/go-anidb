@@ -11,9 +11,10 @@ var titlesDB = &titles.TitlesDatabase{}
 
 // Loads the database from anime-titles.dat.gz in the cache dir.
 func RefreshTitles() error {
-	flock := lockFile(cachePath("anime-titles.dat.gz"))
-	flock.Lock()
-	defer flock.Unlock()
+	if flock := lockFile(cachePath("anime-titles.dat.gz")); flock != nil {
+		flock.Lock()
+		defer flock.Unlock()
+	}
 
 	fh, err := cache.Open("anime-titles.dat.gz")
 	if err != nil {
@@ -39,9 +40,10 @@ func UpdateTitles() error {
 		return nil
 	}
 
-	flock := lockFile(cachePath("anime-titles.dat.gz"))
-	flock.Lock()
-	defer flock.Unlock()
+	if flock := lockFile(cachePath("anime-titles.dat.gz")); flock != nil {
+		flock.Lock()
+		defer flock.Unlock()
+	}
 
 	c := &http.Client{Transport: &http.Transport{DisableCompression: true}}
 

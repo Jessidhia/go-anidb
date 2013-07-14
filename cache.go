@@ -145,9 +145,10 @@ func (c *cacheDir) Get(v Cacheable, keys ...cacheKey) (err error) {
 	defer func() {
 		log.Println("Got entry", keys, "(error", err, ")")
 	}()
-	flock := lockFile(cachePath(keys...))
-	flock.Lock()
-	defer flock.Unlock()
+	if flock := lockFile(cachePath(keys...)); flock != nil {
+		flock.Lock()
+		defer flock.Unlock()
+	}
 
 	fh, err := c.Open(keys...)
 	if err != nil {
@@ -230,9 +231,10 @@ func (c *cacheDir) Set(v Cacheable, keys ...cacheKey) (n int64, err error) {
 	}
 
 	// We have good data, time to actually put it in the cache
-	flock := lockFile(cachePath(keys...))
-	flock.Lock()
-	defer flock.Unlock()
+	if flock := lockFile(cachePath(keys...)); flock != nil {
+		flock.Lock()
+		defer flock.Unlock()
+	}
 
 	fh, err := c.Create(keys...)
 	if err != nil {
