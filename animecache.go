@@ -24,6 +24,9 @@ func (a *Anime) IsStale() bool {
 	if a == nil {
 		return true
 	}
+	if a.Incomplete {
+		return time.Now().Sub(a.Cached) > AnimeIncompleteCacheDuration
+	}
 	return time.Now().Sub(a.Cached) > AnimeCacheDuration
 }
 

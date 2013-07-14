@@ -15,6 +15,9 @@ var (
 	GroupCacheDuration   = 4 * DefaultCacheDuration // They don't change that often.
 	FileCacheDuration    = 8 * DefaultCacheDuration // These change even less often.
 
+	// Used when the UDP API Anime query fails, but the HTTP API query succeeds.
+	AnimeIncompleteCacheDuration = 24 * time.Hour
+
 	// Used when there's some data missing on a file.
 	// Usually happens because the AVDump data hasn't been merged with the database
 	// yet, which is done on a daily cron job.

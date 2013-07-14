@@ -75,9 +75,9 @@ type Anime struct {
 	Awards    []string
 	Resources Resources
 
-	Incomplete bool      // Set if the only the UDP API part of the  query failed
-	Updated    time.Time // When the data was last modified in the server
-	Cached     time.Time // When the data was retrieved from the server
+	Incomplete bool      // Set if the UDP API part of the query failed.
+	Updated    time.Time // When the data was last modified in the server.
+	Cached     time.Time // When the data was retrieved from the server.
 }
 
 type EpisodeCount struct {
