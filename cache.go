@@ -145,20 +145,6 @@ func (c *cacheDir) Get(v Cacheable, keys ...cacheKey) (err error) {
 	defer func() {
 		log.Println("Got entry", keys, "(error", err, ")")
 	}()
-	if flock := lockFile(cachePath(keys...)); flock != nil {
-		flock.Lock()
-		defer flock.Unlock()
-	}
-
-	fh, err := c.Open(keys...)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		if e := fh.Close(); err == nil {
-			err = e
-		}
-	}()
 
 	val := reflect.ValueOf(v)
 	if k := val.Kind(); k == reflect.Ptr || k == reflect.Interface {
@@ -168,7 +154,37 @@ func (c *cacheDir) Get(v Cacheable, keys ...cacheKey) (err error) {
 		// panic because this is an internal coding mistake
 		panic("(*cacheDir).Get(): given Cacheable is not setable")
 	}
-	gz, err := gzip.NewReader(fh)
+
+	flock := lockFile(cachePath(keys...))
+	if flock != nil {
+		flock.Lock()
+	}
+	defer func() {
+		if flock != nil {
+			flock.Unlock()
+		}
+	}()
+
+	fh, err := c.Open(keys...)
+	if err != nil {
+		return err
+	}
+
+	buf := bytes.Buffer{}
+	if _, err = io.Copy(&buf, fh); err != nil {
+		fh.Close()
+		return err
+	}
+	if err = fh.Close(); err != nil {
+		return err
+	}
+
+	if flock != nil {
+		flock.Unlock()
+		flock = nil
+	}
+
+	gz, err := gzip.NewReader(&buf)
 	if err != nil {
 		return err
 	}
