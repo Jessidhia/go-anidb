@@ -63,6 +63,22 @@ func newUDPWrap() *udpWrap {
 
 type paramMap udpapi.ParamMap // shortcut
 
+type noauthAPIReply struct {
+	udpapi.APIReply
+}
+
+func (r *noauthAPIReply) Code() int {
+	return 501
+}
+
+func (r *noauthAPIReply) Text() string {
+	return "LOGIN FIRST"
+}
+
+func (r *noauthAPIReply) Error() error {
+	return &udpapi.APIError{Code: r.Code(), Desc: r.Text()}
+}
+
 type bannedAPIReply struct {
 	udpapi.APIReply
 }
@@ -74,7 +90,7 @@ func (r *bannedAPIReply) Text() string {
 	return "BANNED"
 }
 func (r *bannedAPIReply) Error() error {
-	return &udpapi.APIError{Code: 555, Desc: "BANNED"}
+	return &udpapi.APIError{Code: r.Code(), Desc: r.Text()}
 }
 
 var bannedReply udpapi.APIReply = &bannedAPIReply{}
@@ -108,6 +124,11 @@ func (udp *udpWrap) sendQueue() {
 
 func (udp *udpWrap) SendRecv(cmd string, params paramMap) <-chan udpapi.APIReply {
 	ch := make(chan udpapi.APIReply, 1)
+	if udp.credentials == nil {
+		ch <- &noauthAPIReply{}
+		close(ch)
+		return ch
+	}
 
 	if Banned() {
 		ch <- bannedReply
