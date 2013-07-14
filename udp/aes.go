@@ -8,24 +8,27 @@ import (
 
 // Yes, AniDB works in ECB mode
 type ecbState struct {
-	udpKey string
-	aes    cipher.Block
+	cipher.Block
 }
 
 func newECBState(udpKey string, salt []byte) *ecbState {
-	ecb := &ecbState{udpKey: udpKey}
-	ecb.Init(salt)
+	ecb := &ecbState{}
+	ecb.Init(udpKey, salt)
 	return ecb
 }
 
-func (ecb *ecbState) Init(salt []byte) {
+func (ecb *ecbState) Init(udpKey string, salt []byte) {
 	h := md5.New()
-	h.Write([]byte(ecb.udpKey))
+	h.Write([]byte(udpKey))
 	h.Write(salt)
 
 	key := h.Sum(nil)
 
-	ecb.aes, _ = aes.NewCipher(key)
+	b, err := aes.NewCipher(key)
+	ecb.Block = b
+	if err != nil {
+		panic(err)
+	}
 }
 
 func (ecb *ecbState) BlockSize() int {
@@ -38,21 +41,22 @@ func (ecb *ecbState) Encrypt(p []byte) (c []byte) {
 	}
 
 	padded := pkcs7Pad(p, aes.BlockSize)
-	c = make([]byte, 0, len(padded))
+	c = make([]byte, len(padded))
 
 	for i := 0; i < len(padded); i += aes.BlockSize {
-		ecb.aes.Encrypt(c[i:i+aes.BlockSize], padded[i:i+aes.BlockSize])
+		ecb.Block.Encrypt(c[i:i+aes.BlockSize], padded[i:i+aes.BlockSize])
 	}
 	return c
 }
 
-func (ecb *ecbState) Decrypt(c []byte) (p []byte) {
+func (ecb *ecbState) Decrypt(c []byte) []byte {
 	if ecb == nil {
 		return c
 	}
 
-	for i := 0; i < len(c); i += ecb.aes.BlockSize() {
-		ecb.aes.Decrypt(p[i:], c[i:])
+	p := make([]byte, len(c))
+	for i := 0; i < len(c); i += aes.BlockSize {
+		ecb.Block.Decrypt(p[i:i+aes.BlockSize], c[i:i+aes.BlockSize])
 	}
 	return pkcs7Unpad(p, aes.BlockSize)
 }
