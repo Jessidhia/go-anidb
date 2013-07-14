@@ -45,7 +45,9 @@ type cacheDir struct {
 }
 
 func init() {
-	SetCacheDir(path.Join(os.TempDir(), "anidb", "cache"))
+	if err := SetCacheDir(path.Join(os.TempDir(), "anidb", "cache")); err != nil {
+		panic(err)
+	}
 }
 
 var cache cacheDir
