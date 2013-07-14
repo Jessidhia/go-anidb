@@ -83,11 +83,6 @@ func newCredentials(username, password, udpKey string) *credentials {
 	}
 }
 
-// Re-authenticates the current user. Do not use unless really necessary.
-func (a *AniDB) ReAuth() error {
-	return a.udp.ReAuth()
-}
-
 func (udp *udpWrap) ReAuth() error {
 	if c := udp.credentials; c != nil {
 		defer runtime.GC() // any better way to clean the plaintexts?
