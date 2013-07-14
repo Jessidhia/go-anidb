@@ -52,6 +52,11 @@ func init() {
 
 var cache cacheDir
 
+// Sets the cache directory to the given path.
+//
+// go-anidb needs a valid cache directory to function, so, during module
+// initialization, it uses os.TempDir() to set a default cache dir.
+// go-anidb panics if it's unable to set the default cache dir.
 func SetCacheDir(path string) (err error) {
 	m := cache.RWMutex
 	if m == nil {
@@ -75,6 +80,7 @@ func SetCacheDir(path string) (err error) {
 	return nil
 }
 
+// Returns the current cache dir.
 func GetCacheDir() (path string) {
 	cache.RLock()
 	defer cache.RUnlock()

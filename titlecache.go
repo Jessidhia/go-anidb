@@ -9,7 +9,7 @@ import (
 
 var titlesDB = &titles.TitlesDatabase{}
 
-// Reloads titles from the cache.
+// Loads the database from anime-titles.dat.gz in the cache dir.
 func RefreshTitles() error {
 	flock := lockFile(cachePath("anime-titles.dat.gz"))
 	flock.Lock()
@@ -32,7 +32,7 @@ func TitlesUpToDate() (ok bool) {
 
 // Downloads a new anime-titles database if the database is outdated.
 //
-// Caches the contents on memory, which gets saved by DumpCaches.
+// Saves the database as anime-titles.dat.gz in the cache dir.
 func UpdateTitles() error {
 	// too new, no need to update
 	if TitlesUpToDate() {
