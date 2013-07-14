@@ -28,8 +28,11 @@ type GID int
 
 // Retrieves the Group from the cache.
 func (gid GID) Group() *Group {
-	g, _ := caches.Get(groupCache).Get(int(gid)).(*Group)
-	return g
+	var g Group
+	if cache.Get(&g, "gid", gid) == nil {
+		return &g
+	}
+	return nil
 }
 
 // Returns a Group from the cache if possible.
@@ -37,19 +40,17 @@ func (gid GID) Group() *Group {
 // If the Group is stale, then retrieves the Group
 // through the UDP API.
 func (adb *AniDB) GroupByID(gid GID) <-chan *Group {
+	keys := []cacheKey{"gid", gid}
 	ch := make(chan *Group, 1)
-	if g := gid.Group(); !g.IsStale() {
-		ch <- g
-		close(ch)
-		return ch
-	}
-
-	gc := caches.Get(groupCache)
 
 	ic := make(chan Cacheable, 1)
 	go func() { ch <- (<-ic).(*Group); close(ch) }()
+	if intentMap.Intent(ic, keys...) {
+		return ch
+	}
 
-	if gc.Intent(int(gid), ic) {
+	if g := gid.Group(); !g.IsStale() {
+		intentMap.Notify(g, keys...)
 		return ch
 	}
 
@@ -130,7 +131,8 @@ func (adb *AniDB) GroupByID(gid GID) <-chan *Group {
 				Cached: time.Now(),
 			}
 		}
-		gc.Set(int(gid), g)
+		cache.Set(g, keys...)
+		intentMap.Notify(g, keys...)
 	}()
 	return ch
 }

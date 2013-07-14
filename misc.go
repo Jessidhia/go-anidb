@@ -15,6 +15,8 @@ var (
 	GroupCacheDuration   = 4 * DefaultCacheDuration // They don't change that often.
 	FileCacheDuration    = 8 * DefaultCacheDuration // These change even less often.
 
+	InvalidKeyCacheDuration = 1 * time.Hour
+
 	// Used when the UDP API Anime query fails, but the HTTP API query succeeds.
 	AnimeIncompleteCacheDuration = 24 * time.Hour
 

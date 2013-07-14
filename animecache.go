@@ -14,6 +14,7 @@ import (
 
 func init() {
 	gob.RegisterName("*github.com/Kovensky/go-anidb.Anime", &Anime{})
+	gob.RegisterName("github.com/Kovensky/go-anidb.AID", AID(0))
 }
 
 func (a *Anime) Touch() {
@@ -33,10 +34,17 @@ func (a *Anime) IsStale() bool {
 // Unique Anime IDentifier.
 type AID int
 
+// make AID Cacheable
+func (e AID) Touch()        {}
+func (e AID) IsStale() bool { return false }
+
 // Returns a cached Anime. Returns nil if there is no cached Anime with this AID.
 func (aid AID) Anime() *Anime {
-	a, _ := caches.Get(animeCache).Get(int(aid)).(*Anime)
-	return a
+	var a Anime
+	if cache.Get(&a, "aid", aid) == nil {
+		return &a
+	}
+	return nil
 }
 
 type httpAnimeResponse struct {
@@ -50,19 +58,23 @@ type httpAnimeResponse struct {
 //
 // Note: This can take at least 4 seconds during heavy traffic.
 func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
+	keys := []cacheKey{"aid", aid}
 	ch := make(chan *Anime, 1)
 
-	anime := aid.Anime()
-	if !anime.IsStale() {
-		ch <- anime
-		close(ch)
+	ic := make(chan Cacheable, 1)
+	go func() { ch <- (<-ic).(*Anime); close(ch) }()
+	if intentMap.Intent(ic, keys...) {
 		return ch
 	}
 
-	ac := caches.Get(animeCache)
-	ic := make(chan Cacheable, 1)
-	go func() { ch <- (<-ic).(*Anime); close(ch) }()
-	if ac.Intent(int(aid), ic) {
+	if !cache.CheckValid(keys...) {
+		intentMap.Notify((*Anime)(nil), keys...)
+		return ch
+	}
+
+	anime := aid.Anime()
+	if !anime.IsStale() {
+		intentMap.Notify(anime, keys...)
 		return ch
 	}
 
@@ -98,6 +110,11 @@ func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 					break Loop
 				}
 				if a := anime.populateFromHTTP(resp.anime); a == nil {
+					// HTTP ok but parsing not ok
+					if anime.PrimaryTitle == "" {
+						cache.MarkInvalid(keys...)
+					}
+
 					ok = false
 					break Loop
 				} else {
@@ -105,18 +122,21 @@ func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 				}
 				httpChan = nil
 			case reply := <-udpChan:
-				anime.Incomplete = !anime.populateFromUDP(reply)
+				if reply.Code() == 330 {
+					cache.MarkInvalid(keys...)
+				} else {
+					anime.Incomplete = !anime.populateFromUDP(reply)
+				}
 				udpChan = nil
 			}
 		}
 		if anime.PrimaryTitle != "" {
 			if ok {
-				ac.Set(int(aid), anime)
-			} else {
-				ac.Flush(int(aid), anime)
+				cache.Set(anime, keys...)
 			}
+			intentMap.Notify(anime, keys...)
 		} else {
-			ac.Set(int(aid), (*Anime)(nil))
+			intentMap.Notify((*Anime)(nil), keys...)
 		}
 	}()
 	return ch
@@ -148,12 +168,6 @@ func (a *Anime) populateFromHTTP(reply httpapi.Anime) *Anime {
 	for _, title := range reply.Titles {
 		switch title.Type {
 		case "main":
-			if a.PrimaryTitle != "" {
-				// We assume there's only ever one "main" title
-				panic(
-					fmt.Sprintf("PrimaryTitle %q already set, new PrimaryTitle %q received!",
-						a.PrimaryTitle, title.Title))
-			}
 			a.PrimaryTitle = title.Title
 		case "official":
 			if a.OfficialTitles == nil {

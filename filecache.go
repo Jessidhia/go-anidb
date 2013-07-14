@@ -2,19 +2,19 @@ package anidb
 
 import (
 	"encoding/gob"
-	"fmt"
 	"github.com/Kovensky/go-anidb/misc"
 	"github.com/Kovensky/go-anidb/udp"
 	"image"
 	"log"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
 func init() {
 	gob.RegisterName("*github.com/Kovensky/go-anidb.File", &File{})
+	gob.RegisterName("*github.com/Kovensky/go-anidb.ed2kCache", &ed2kCache{})
+	gob.RegisterName("github.com/Kovensky/go-anidb.FID", FID(0))
 }
 
 func (f *File) Touch() {
@@ -33,21 +33,29 @@ func (f *File) IsStale() bool {
 
 type FID int
 
+// make FID Cacheable
+func (e FID) Touch()        {}
+func (e FID) IsStale() bool { return false }
+
 func (fid FID) File() *File {
-	f, _ := caches.Get(fileCache).Get(int(fid)).(*File)
-	return f
-}
-
-func ed2kKey(ed2k string, size int64) string {
-	return fmt.Sprintf("%s-%016x", ed2k, size)
-}
-
-func ed2kCache(f *File) {
-	if f != nil {
-		ed2kFidLock.Lock()
-		defer ed2kFidLock.Unlock()
-		ed2kFidMap[ed2kKey(f.Ed2kHash, f.Filesize)] = f.FID
+	var f File
+	if cache.Get(&f, "fid", fid) == nil {
+		return &f
 	}
+	return nil
+}
+
+type ed2kCache struct {
+	FID
+	time.Time
+}
+
+func (c *ed2kCache) Touch() {
+	c.Time = time.Now()
+}
+
+func (c *ed2kCache) IsStale() bool {
+	return time.Now().Sub(c.Time) > FileCacheDuration
 }
 
 // Prefetches the Anime, Episode and Group that this
@@ -71,22 +79,24 @@ func (f *File) Prefetch(adb *AniDB) <-chan *File {
 	return ch
 }
 
-var ed2kFidMap = map[string]FID{}
-var ed2kIntent = map[string][]chan *File{}
-var ed2kFidLock = sync.RWMutex{}
-
 func (adb *AniDB) FileByID(fid FID) <-chan *File {
+	keys := []cacheKey{"fid", fid}
+
 	ch := make(chan *File, 1)
-	if f := fid.File(); !f.IsStale() {
-		ch <- f
-		close(ch)
+
+	ic := make(chan Cacheable, 1)
+	go func() { ch <- (<-ic).(*File); close(ch) }()
+	if intentMap.Intent(ic, keys...) {
 		return ch
 	}
 
-	fc := caches.Get(fileCache)
-	ic := make(chan Cacheable, 1)
-	go func() { ch <- (<-ic).(*File); close(ch) }()
-	if fc.Intent(int(fid), ic) {
+	if !cache.CheckValid(keys...) {
+		intentMap.Notify((*File)(nil), keys...)
+		return ch
+	}
+
+	if f := fid.File(); !f.IsStale() {
+		intentMap.Notify(f, keys...)
 		return ch
 	}
 
@@ -101,35 +111,44 @@ func (adb *AniDB) FileByID(fid FID) <-chan *File {
 		var f *File
 		if reply.Error() == nil {
 			f = parseFileResponse(reply)
+		} else if reply.Code() == 320 {
+			cache.MarkInvalid(keys...)
 		}
-		ed2kCache(f)
-		fc.Set(int(fid), f)
+		if f != nil {
+			cache.Set(&ed2kCache{FID: f.FID}, "fid", "by-ed2k", f.Ed2kHash, f.Filesize)
+			cache.Set(f, keys...)
+		}
+		intentMap.Notify(f, keys...)
 	}()
 	return ch
 }
 
 func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
-	key := ed2kKey(ed2k, size)
+	keys := []cacheKey{"fid", "by-ed2k", ed2k, size}
+
 	ch := make(chan *File, 1)
 
-	ed2kFidLock.RLock()
-	if fid, ok := ed2kFidMap[key]; ok {
-		ed2kFidLock.RUnlock()
-		if f := fid.File(); f != nil {
-			ch <- f
-			close(ch)
-			return ch
+	ic := make(chan Cacheable, 1)
+	go func() {
+		fid := (<-ic).(FID)
+		if fid > 0 {
+			ch <- <-adb.FileByID(fid)
 		}
-		return adb.FileByID(fid)
-	}
-	ed2kFidLock.RUnlock()
-
-	ed2kFidLock.Lock()
-	if list, ok := ed2kIntent[key]; ok {
-		ed2kIntent[key] = append(list, ch)
+		close(ch)
+	}()
+	if intentMap.Intent(ic, keys...) {
 		return ch
-	} else {
-		ed2kIntent[key] = append(list, ch)
+	}
+
+	if !cache.CheckValid(keys...) {
+		intentMap.Notify(FID(0), keys...)
+		return ch
+	}
+
+	var ec ed2kCache
+	if cache.Get(&ec, keys...) == nil {
+		intentMap.Notify(ec.FID, keys...)
+		return ch
 	}
 
 	go func() {
@@ -141,28 +160,22 @@ func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 				"amask": fileAmask,
 			})
 
+		fid := FID(0)
 		var f *File
 		if reply.Error() == nil {
 			f = parseFileResponse(reply)
 
-			ed2kCache(f)
-			caches.Get(fileCache).Set(int(f.FID), f)
+			fid = f.FID
+
+			cache.Set(&ed2kCache{FID: fid}, keys...)
+			cache.Set(f, "fid", fid)
 		} else if reply.Code() == 320 { // file not found
-			ed2kFidLock.Lock()
-			delete(ed2kFidMap, key)
-			ed2kFidLock.Unlock()
+			cache.MarkInvalid(keys...)
 		} else if reply.Code() == 322 { // multiple files found
 			panic("Don't know what to do with " + strings.Join(reply.Lines(), "\n"))
 		}
 
-		ed2kFidLock.Lock()
-		defer ed2kFidLock.Unlock()
-
-		for _, ch := range ed2kIntent[key] {
-			ch <- f
-			close(ch)
-		}
-		delete(ed2kIntent, key)
+		intentMap.Notify(fid, keys...)
 	}()
 	return ch
 }

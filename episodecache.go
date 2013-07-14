@@ -4,7 +4,6 @@ import (
 	"encoding/gob"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -23,44 +22,45 @@ func (e *Episode) IsStale() bool {
 	return time.Now().Sub(e.Cached) > EpisodeCacheDuration
 }
 
-var eidAidMap = map[EID]AID{}
-var eidAidLock = sync.RWMutex{}
-
 // Unique Episode IDentifier.
 type EID int
 
 // Retrieves the Episode corresponding to this EID from the cache.
 func (eid EID) Episode() *Episode {
-	e, _ := caches.Get(episodeCache).Get(int(eid)).(*Episode)
-	return e
+	var e Episode
+	if cache.Get(&e, "eid", eid) == nil {
+		return &e
+	}
+	return nil
 }
 
 func cacheEpisode(ep *Episode) {
-	eidAidLock.Lock()
-	defer eidAidLock.Unlock()
-
-	eidAidMap[ep.EID] = ep.AID
-	caches.Get(episodeCache).Set(int(ep.EID), ep)
+	cache.Set(ep.AID, "aid", "by-eid", ep.EID)
+	cache.Set(ep, "eid", ep.EID)
 }
 
 // Retrieves the Episode from the cache if possible.
 //
 // If the result is stale, then queries the UDP API to
-// know which AID owns this EID, then gets the episodes
+// know which AID owns this EID, then gets the episode
 // from the Anime.
 func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
+	keys := []cacheKey{"eid", eid}
 	ch := make(chan *Episode, 1)
 
-	if e := eid.Episode(); e != nil && !e.IsStale() {
-		ch <- e
-		close(ch)
+	ic := make(chan Cacheable, 1)
+	go func() { ch <- (<-ic).(*Episode); close(ch) }()
+	if intentMap.Intent(ic, keys...) {
 		return ch
 	}
 
-	ec := caches.Get(episodeCache)
-	ic := make(chan Cacheable, 1)
-	go func() { ch <- (<-ic).(*Episode); close(ch) }()
-	if ec.Intent(int(eid), ic) {
+	if !cache.CheckValid(keys...) {
+		intentMap.Notify((*Episode)(nil), keys...)
+		return ch
+	}
+
+	if e := eid.Episode(); !e.IsStale() {
+		intentMap.Notify(e, keys...)
 		return ch
 	}
 
@@ -68,9 +68,8 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 		// The UDP API data is worse than the HTTP API anime data,
 		// try and get from the corresponding Anime
 
-		eidAidLock.RLock()
-		aid, ok := eidAidMap[eid]
-		eidAidLock.RUnlock()
+		aid := AID(0)
+		ok := cache.Get(&aid, "aid", "by-eid", eid) == nil
 
 		udpDone := false
 
@@ -92,6 +91,8 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 						ok = true
 						aid = AID(id)
 					}
+				} else if reply.Code() == 340 {
+					cache.MarkInvalid(keys...)
 				} else {
 					break
 				}
@@ -104,14 +105,11 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 				break
 			} else {
 				// if this is somehow still a miss, then the EID<->AID map broke
-				eidAidLock.Lock()
-				delete(eidAidMap, eid)
-				eidAidLock.Unlock()
-
+				cache.Delete("aid", "by-eid", eid)
 				ok = false
 			}
 		}
-		// Caching (and channel broadcasting) done by AnimeByID
+		intentMap.Notify(e, keys...)
 	}()
 	return ch
 }

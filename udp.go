@@ -1,26 +1,40 @@
 package anidb
 
 import (
+	"encoding/gob"
 	"github.com/Kovensky/go-anidb/udp"
-	"sync"
 	"time"
 )
 
-var banTime time.Time
-var banTimeLock sync.Mutex
+func init() {
+	gob.RegisterName("*github.com/Kovensky/go-anidb.banCache", &banCache{})
+}
 
 const banDuration = 30*time.Minute + 1*time.Second
 
-// Returns whether the last UDP API access returned a 555 BANNED message.
-func Banned() bool {
-	banTimeLock.Lock()
-	banTimeLock.Unlock()
+type banCache struct{ time.Time }
 
-	return _banned()
+func (c *banCache) Touch() {
+	c.Time = time.Now()
+}
+func (c *banCache) IsStale() bool {
+	return time.Now().Sub(c.Time) > banDuration
 }
 
-func _banned() bool {
-	return time.Now().Sub(banTime) > banDuration
+// Returns whether the last UDP API access returned a 555 BANNED message.
+func Banned() bool {
+	var banTime banCache
+	cache.Get(&banTime, "banned")
+
+	stale := banTime.IsStale()
+	if stale {
+		cache.Delete("banned")
+	}
+	return !stale
+}
+
+func setBanned() {
+	cache.Set(&banCache{}, "banned")
 }
 
 type paramSet struct {
@@ -85,11 +99,7 @@ func (udp *udpWrap) sendQueue() {
 		case 503, 504: // client library rejected
 			panic(reply.Error())
 		case 555: // IP (and user, possibly client) temporarily banned
-			banTimeLock.Lock()
-
-			banTime = time.Now()
-
-			banTimeLock.Unlock()
+			setBanned()
 		}
 		set.ch <- reply
 		close(set.ch)
@@ -99,11 +109,7 @@ func (udp *udpWrap) sendQueue() {
 func (udp *udpWrap) SendRecv(cmd string, params paramMap) <-chan udpapi.APIReply {
 	ch := make(chan udpapi.APIReply, 1)
 
-	banTimeLock.Lock()
-	defer banTimeLock.Unlock()
-	if _banned() {
-		banTime = time.Time{}
-	} else {
+	if Banned() {
 		ch <- bannedReply
 		close(ch)
 		return ch
