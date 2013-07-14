@@ -1,3 +1,6 @@
+// Implements parsing and searching of the anime-titles.dat database.
+//
+// http://wiki.anidb.info/w/API#Anime_Titles
 package titles
 
 import (
