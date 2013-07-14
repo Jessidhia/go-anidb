@@ -22,42 +22,42 @@ func init() {
 type TestVector struct {
 	Input string
 	Limit int
-	AIDs  []int
+	AIDs  []titles.AID
 }
 
 func TestFuzzySearch(T *testing.T) {
 	// Each vector goes one step deeper in the fuzzy search stack
 	vec := []TestVector{
 		// no match
-		TestVector{Input: "\x00", Limit: -1, AIDs: []int{}},
+		TestVector{Input: "\x00", Limit: -1, AIDs: []titles.AID{}},
 		// exact
-		TestVector{Input: "SAC2", Limit: 1, AIDs: []int{1176}},
+		TestVector{Input: "SAC2", Limit: 1, AIDs: []titles.AID{1176}},
 		// exact, but in hungarian!
-		TestVector{Input: "Varázslatos álmok", Limit: -1, AIDs: []int{235}},
+		TestVector{Input: "Varázslatos álmok", Limit: -1, AIDs: []titles.AID{235}},
 		// prefix words
-		TestVector{Input: "Varázslatos", Limit: 3, AIDs: []int{235, 2152, 2538}},
+		TestVector{Input: "Varázslatos", Limit: 3, AIDs: []titles.AID{235, 2152, 2538}},
 		// suffix words
-		TestVector{Input: "A rózsa ígérete", Limit: -1, AIDs: []int{2152}},
+		TestVector{Input: "A rózsa ígérete", Limit: -1, AIDs: []titles.AID{2152}},
 		// infix words
-		TestVector{Input: "Stand Alone", Limit: 1, AIDs: []int{247}},
+		TestVector{Input: "Stand Alone", Limit: 1, AIDs: []titles.AID{247}},
 		// prefix
-		TestVector{Input: "Ghost in t", Limit: 1, AIDs: []int{61}},
+		TestVector{Input: "Ghost in t", Limit: 1, AIDs: []titles.AID{61}},
 		// suffix
-		TestVector{Input: "flowne", Limit: 1, AIDs: []int{184}},
+		TestVector{Input: "flowne", Limit: 1, AIDs: []titles.AID{184}},
 		// words, first word first in name
-		TestVector{Input: "Kumo Mukou", Limit: -1, AIDs: []int{469}},
+		TestVector{Input: "Kumo Mukou", Limit: -1, AIDs: []titles.AID{469}},
 		// words, last word last in name
-		TestVector{Input: "A titka", Limit: 1, AIDs: []int{303}},
+		TestVector{Input: "A titka", Limit: 1, AIDs: []titles.AID{303}},
 		// words, infix but not contiguous
-		TestVector{Input: "Kidoutai 2nd", Limit: 1, AIDs: []int{1176}},
+		TestVector{Input: "Kidoutai 2nd", Limit: 1, AIDs: []titles.AID{1176}},
 		// strings, first string first in name
-		TestVector{Input: "Kouka Kidou", Limit: 1, AIDs: []int{61}},
+		TestVector{Input: "Kouka Kidou", Limit: 1, AIDs: []titles.AID{61}},
 		// strings, last string last in name
-		TestVector{Input: "app Princess", Limit: 1, AIDs: []int{640}},
+		TestVector{Input: "app Princess", Limit: 1, AIDs: []titles.AID{640}},
 		// strings, anywhere in this order
-		TestVector{Input: "ouka douta", Limit: 2, AIDs: []int{61, 247}},
+		TestVector{Input: "ouka douta", Limit: 2, AIDs: []titles.AID{61, 247}},
 		// match everything
-		TestVector{Input: "", Limit: 1, AIDs: []int{1}},
+		TestVector{Input: "", Limit: 1, AIDs: []titles.AID{1}},
 	}
 
 	for i, v := range vec {
@@ -91,33 +91,33 @@ func TestFuzzySearchFold(T *testing.T) {
 	// Same vector as the previous one, but with disturbed word cases
 	vec := []TestVector{
 		// exact
-		TestVector{Input: "sac2", Limit: 1, AIDs: []int{1176}},
+		TestVector{Input: "sac2", Limit: 1, AIDs: []titles.AID{1176}},
 		// exact, but in hungarian!
-		TestVector{Input: "VarÁzslatos Álmok", Limit: -1, AIDs: []int{235}},
+		TestVector{Input: "VarÁzslatos Álmok", Limit: -1, AIDs: []titles.AID{235}},
 		// prefix words
-		TestVector{Input: "varázslatos", Limit: 3, AIDs: []int{235, 2152, 2538}},
+		TestVector{Input: "varázslatos", Limit: 3, AIDs: []titles.AID{235, 2152, 2538}},
 		// suffix words
-		TestVector{Input: "a rÓzsa ígérete", Limit: -1, AIDs: []int{2152}},
+		TestVector{Input: "a rÓzsa ígérete", Limit: -1, AIDs: []titles.AID{2152}},
 		// infix words
-		TestVector{Input: "Stand Alone", Limit: 1, AIDs: []int{247}},
+		TestVector{Input: "Stand Alone", Limit: 1, AIDs: []titles.AID{247}},
 		// prefix
-		TestVector{Input: "ghost in t", Limit: 1, AIDs: []int{61}},
+		TestVector{Input: "ghost in t", Limit: 1, AIDs: []titles.AID{61}},
 		// suffix
-		TestVector{Input: "FlownE", Limit: 1, AIDs: []int{184}},
+		TestVector{Input: "FlownE", Limit: 1, AIDs: []titles.AID{184}},
 		// words, first word first in name
-		TestVector{Input: "kumo mukou", Limit: -1, AIDs: []int{469}},
+		TestVector{Input: "kumo mukou", Limit: -1, AIDs: []titles.AID{469}},
 		// words, last word last in name
-		TestVector{Input: "a titka", Limit: -1, AIDs: []int{303}},
+		TestVector{Input: "a titka", Limit: -1, AIDs: []titles.AID{303}},
 		// words, infix but not contiguous
-		TestVector{Input: "kidoutai 2nd", Limit: 1, AIDs: []int{1176}},
+		TestVector{Input: "kidoutai 2nd", Limit: 1, AIDs: []titles.AID{1176}},
 		// strings, first string first in name
-		TestVector{Input: "Kouka kidou", Limit: 1, AIDs: []int{61}},
+		TestVector{Input: "Kouka kidou", Limit: 1, AIDs: []titles.AID{61}},
 		// strings, last string last in name
-		TestVector{Input: "app princess", Limit: 1, AIDs: []int{640}},
+		TestVector{Input: "app princess", Limit: 1, AIDs: []titles.AID{640}},
 		// strings, anywhere in this order
-		TestVector{Input: "Ouka Douta", Limit: 2, AIDs: []int{61, 247}},
+		TestVector{Input: "Ouka Douta", Limit: 2, AIDs: []titles.AID{61, 247}},
 		// no match
-		TestVector{Input: "\x00", Limit: -1, AIDs: []int{}},
+		TestVector{Input: "\x00", Limit: -1, AIDs: []titles.AID{}},
 	}
 
 	for i, v := range vec {
