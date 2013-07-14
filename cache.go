@@ -194,12 +194,6 @@ func (c *cacheDir) Get(v Cacheable, keys ...cacheKey) (err error) {
 		}
 	}()
 
-	// defer func() {
-	// 	if err == io.EOF {
-	// 		err = nil
-	// 	}
-	// }()
-
 	switch f := gz.Header.Comment; f {
 	case "encoding/gob":
 		dec := gob.NewDecoder(gz)
