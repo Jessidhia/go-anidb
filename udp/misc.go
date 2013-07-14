@@ -8,9 +8,9 @@ import (
 
 func init() {
 	// implements APIReply
-	gob.RegisterName("udpapi.UptimeReply", UptimeReply{})
+	gob.RegisterName("*udpapi.UptimeReply", &UptimeReply{})
 	// implements APIReply
-	gob.RegisterName("udpapi.PingReply", PingReply{})
+	gob.RegisterName("*udpapi.PingReply", &PingReply{})
 }
 
 type UptimeReply struct {
@@ -24,12 +24,12 @@ type UptimeReply struct {
 // Returns a channel through which the eventual response will be sent.
 //
 // http://wiki.anidb.net/w/UDP_API_Definition#UPTIME:_Retrieve_Server_Uptime
-func (a *AniDBUDP) Uptime() <-chan UptimeReply {
-	ch := make(chan UptimeReply, 2)
+func (a *AniDBUDP) Uptime() <-chan *UptimeReply {
+	ch := make(chan *UptimeReply, 2)
 	go func() {
 		reply := <-a.SendRecv("UPTIME", ParamMap{})
 
-		r := UptimeReply{APIReply: reply}
+		r := &UptimeReply{APIReply: reply}
 		if r.Error() == nil {
 			uptime, _ := strconv.ParseInt(reply.Lines()[1], 10, 32)
 			r.Uptime = time.Duration(uptime) * time.Millisecond
@@ -51,12 +51,12 @@ type PingReply struct {
 // Returns a channel through which the eventual response will be sent.
 //
 // http://wiki.anidb.net/w/UDP_API_Definition#PING:_Ping_Command
-func (a *AniDBUDP) Ping() <-chan PingReply {
-	ch := make(chan PingReply, 2)
+func (a *AniDBUDP) Ping() <-chan *PingReply {
+	ch := make(chan *PingReply, 2)
 	go func() {
 		reply := <-a.SendRecv("PING", ParamMap{"nat": 1})
 
-		r := PingReply{APIReply: reply}
+		r := &PingReply{APIReply: reply}
 		if r.Error() == nil {
 			port, _ := strconv.ParseUint(reply.Lines()[1], 10, 16)
 			r.Port = uint16(port)

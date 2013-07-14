@@ -11,11 +11,11 @@ import (
 
 func init() {
 	// implements error
-	gob.RegisterName("udpapi.APIError", APIError{})
+	gob.RegisterName("*udpapi.APIError", &APIError{})
 	// implements APIReply
-	gob.RegisterName("udpapi.errorWrapper", errorWrapper{})
+	gob.RegisterName("*udpapi.errorWrapper", &errorWrapper{})
 	// implements APIReply
-	gob.RegisterName("udpapi.genericReply", genericReply{})
+	gob.RegisterName("*udpapi.genericReply", &genericReply{})
 }
 
 type APIError struct {
