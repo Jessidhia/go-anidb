@@ -5,7 +5,6 @@ import (
 	"compress/zlib"
 	"io"
 	"io/ioutil"
-	"net"
 )
 
 type packet struct {
@@ -14,11 +13,11 @@ type packet struct {
 	sent chan bool
 }
 
-func getPacket(conn *net.UDPConn, ecb *ecbState) (buf []byte, err error) {
+func (a *AniDBUDP) getPacket() (buf []byte, err error) {
 	buf = make([]byte, 1500)
-	n, err := conn.Read(buf)
+	n, err := a.conn.Read(buf)
 
-	buf = ecb.Decrypt(buf[:n])
+	buf = a.ecb.Decrypt(buf[:n])
 
 	if buf[0] == 0 && buf[1] == 0 {
 		def, _ := zlib.NewReader(bytes.NewReader(buf[2:]))
@@ -29,6 +28,7 @@ func getPacket(conn *net.UDPConn, ecb *ecbState) (buf []byte, err error) {
 			err = e
 		}
 	}
+
 	return buf, err
 }
 

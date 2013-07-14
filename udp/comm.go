@@ -219,7 +219,7 @@ func (a *AniDBUDP) recvLoop() {
 				brk <- true
 				return
 			default:
-				b, err := getPacket(a.conn, a.ecb)
+				b, err := a.getPacket()
 				pkt <- packet{b: b, err: err}
 			}
 		}
@@ -268,7 +268,6 @@ func (a *AniDBUDP) recvLoop() {
 
 				a.routerLock.RLock()
 				if ch, ok := a.tagRouter[r.Tag()]; ok {
-
 					log.Println("<<<", string(b))
 					ch <- r
 				} else {
