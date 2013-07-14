@@ -60,22 +60,20 @@ type TitlesDatabase struct {
 
 var createdRegexp = regexp.MustCompile(`^# created: (.*)$`)
 
-// Loads the database from the given io.ReadCloser.
+// Loads the database from the given io.Reader.
 //
-// The ReadCloser must point to a file or stream with
+// The Reader must point to a file or stream with
 // the contents of anime-titles.dat, which can be obtained
 // from the DataDumpURL. LoadDB will automatically try to
 // un-gzip, so the file can be stored in gzip format.
 //
 // Note: LoadDB will read the entire contents of the given
-// io.ReadCloser. LoadDB will call Close() on the
-// io.ReadCloser after reading it.
-func (db *TitlesDatabase) LoadDB(r io.ReadCloser) {
+// io.Reader.
+func (db *TitlesDatabase) LoadDB(r io.Reader) {
 	db.Lock()
 	defer db.Unlock()
 
 	all, _ := ioutil.ReadAll(r)
-	r.Close()
 
 	var rd io.Reader
 	if gz, err := gzip.NewReader(bytes.NewReader(all)); err == nil {
