@@ -25,6 +25,9 @@ func (f *File) IsStale() bool {
 	if f == nil {
 		return true
 	}
+	if f.Incomplete {
+		return time.Now().Sub(f.Cached) > FileIncompleteCacheDuration
+	}
 	return time.Now().Sub(f.Cached) > FileCacheDuration
 }
 
