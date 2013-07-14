@@ -20,6 +20,21 @@ const (
 	AniDBImageBaseURL = "http://img7.anidb.net/pics/anime/" // Base URL for the various Pictures in the response
 
 	DateFormat = "2006-01-02" // Use to convert the various YYYY-MM-DD timestamps to a time.Time.
+
+	// Base URLs for the various resources.
+	// Meant for use with fmt.Sprintf.
+	ANNFormat          = "http://www.animenewsnetwork.com/encyclopedia/anime.php?id=%v" // Type 1
+	MyAnimeListFormat  = "http://myanimelist.net/anime/%v"                              // Type 2
+	AnimeNfoFormat     = "http://www.animenfo.com/animetitle,%v,%v,a.html"              // Type 3
+	_                                                                                   // Type 4
+	_                                                                                   // Type 5
+	WikiEnglishFormat  = "http://en.wikipedia.org/wiki/%v"                              // Type 6
+	WikiJapaneseFormat = "http://ja.wikipedia.org/wiki/%v"                              // Type 7
+	SyoboiFormat       = "http://cal.syoboi.jp/tid/%v/time"                             // Type 8
+	AllCinemaFormat    = "http://www.allcinema.net/prog/show_c.php?num_c=%v"            // Type 9
+	AnisonFormat       = "http://anison.info/data/program/%v.html"                      // Type 10
+	VNDBFormat         = "http://vndb.org/v%v"                                          // Type 14
+	MaruMeganeFormat   = "http://www.anime.marumegane.com/%v.html"                      // Type 15
 )
 
 const (
@@ -39,6 +54,24 @@ func GetAnime(AID int) (a Anime, err error) {
 		res.Body.Close()
 
 		a.Error = strings.TrimSpace(a.Error)
+
+		title := ""
+		for _, t := range a.Titles {
+			if t.Type == "main" {
+				title = t.Title
+				break
+			}
+		}
+
+		for _, r := range a.Resources {
+			switch r.Type {
+			case 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 15:
+				// documentation knows about these
+			default:
+				log.Printf("Anime %d (%s) has unknown resource type %d", a.ID, title, r.Type)
+				log.Printf("Type %d external entities: %#v", r.Type, r.ExternalEntity)
+			}
+		}
 
 		return a, err
 	}
@@ -121,16 +154,42 @@ type Category struct {
 	Description string `xml:"description"` // Category description
 }
 
+type ExternalEntity struct {
+	Identifiers []string `xml:"identifier"`
+	URL         []string `xml:"url"` // Used for types 5 and 6
+}
+
 // Completely undocumented.
 // Most entries just have one or two numbers as Identifiers.
 //
-// Type 4 appears to have the official URL in .URL[0]
+// Empiric documentation:
 //
-// Type 7 appears to have the official name in .Identifiers[0]
+// Type 1 is the ANN id.
+//
+// Type 2 is the MyAnimeList ID.
+//
+// Type 3 is the AnimeNfo ID tuple.
+//
+// Type 4 is the official japanese webpage.
+//
+// Type 5 is the official english webpage.
+//
+// Type 6 is the english wikipedia page name.
+//
+// Type 7 is the japanese wikipedia page name.
+//
+// Type 8 is the cal.syoboi.jp schedule ID.
+//
+// Type 9 is the AllCinema ID.
+//
+// Type 10 is the anison.info ID.
+//
+// Type 14 is the VNDB ID.
+//
+// Type 15 is the MaruMegane ID.
 type Resource struct {
-	Type        int      `xml:"type,attr"`
-	Identifiers []string `xml:"externalentity>identifier"`
-	URL         []string `xml:"externalentity>url"`
+	Type           int              `xml:"type,attr"`
+	ExternalEntity []ExternalEntity `xml:"externalentity"`
 }
 
 type Tag struct {
