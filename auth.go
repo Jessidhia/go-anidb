@@ -99,32 +99,32 @@ func (udp *udpWrap) ReAuth() error {
 // Saves the used credentials in the AniDB struct, to allow automatic
 // re-authentication when needed; they are (properly) encrypted with a key that's
 // uniquely generated every time the module is initialized.
-func (a *AniDB) SetCredentials(username, password, udpKey string) {
-	a.udp.credentials.shred()
-	a.udp.credentials = newCredentials(username, password, udpKey)
+func (adb *AniDB) SetCredentials(username, password, udpKey string) {
+	adb.udp.credentials.shred()
+	adb.udp.credentials = newCredentials(username, password, udpKey)
 }
 
 // Authenticates to anidb's UDP API and, on success, stores the credentials using
 // SetCredentials. If udpKey is not "", the communication with the server
 // will be encrypted, but in the VERY weak ECB mode.
-func (a *AniDB) Auth(username, password, udpKey string) (err error) {
+func (adb *AniDB) Auth(username, password, udpKey string) (err error) {
 	defer runtime.GC() // any better way to clean the plaintexts?
 
-	if err = a.udp.Auth(username, password, udpKey); err == nil {
-		a.udp.connected = true
-		a.SetCredentials(username, password, udpKey)
+	if err = adb.udp.Auth(username, password, udpKey); err == nil {
+		adb.udp.connected = true
+		adb.SetCredentials(username, password, udpKey)
 	}
 	return
 }
 
 // Logs the user out and removes the credentials from the AniDB struct.
-func (a *AniDB) Logout() error {
-	if a.udp.connected {
-		a.udp.credentials.shred()
-		a.udp.credentials = nil
+func (adb *AniDB) Logout() error {
+	if adb.udp.connected {
+		adb.udp.credentials.shred()
+		adb.udp.credentials = nil
 
-		a.udp.connected = false
-		return a.udp.Logout()
+		adb.udp.connected = false
+		return adb.udp.Logout()
 	}
 	return nil
 }
