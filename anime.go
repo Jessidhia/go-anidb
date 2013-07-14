@@ -101,17 +101,34 @@ func (adb *AniDB) AnimeByNameFold(name string) <-chan *Anime {
 	return adb.AnimeByID(SearchAnimeFold(name))
 }
 
+// Returns a list of all Episodes in this Anime's Episodes list
+// that are contained by the given EpisodeContainer.
+func (a *Anime) EpisodeList(c misc.EpisodeContainer) (eps []*Episode) {
+	if a == nil || c == nil {
+		return nil
+	}
+
+	for i, e := range a.Episodes {
+		if c.ContainsEpisodes(&e.Episode) {
+			eps = append(eps, &a.Episodes[i])
+		}
+	}
+	return
+}
+
 // Searches for the given Episode in this Anime's Episodes list
 // and returns the match.
 //
 // Returns nil if there is no match.
 func (a *Anime) Episode(ep *misc.Episode) *Episode {
-	for i, e := range a.Episodes {
-		if ep.ContainsEpisodes(&e.Episode) {
-			return &a.Episodes[i]
-		}
+	switch list := a.EpisodeList(ep); len(list) {
+	case 0:
+		return nil
+	case 1:
+		return list[0]
+	default:
+		panic("Single episode search returned more than one result")
 	}
-	return nil
 }
 
 // Convenience method that parses the string into an Episode
