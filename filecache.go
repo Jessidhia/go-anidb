@@ -34,6 +34,7 @@ func (f *File) IsStale() bool {
 type FID int
 
 // make FID Cacheable
+
 func (e FID) Touch()        {}
 func (e FID) IsStale() bool { return false }
 

@@ -35,6 +35,7 @@ func (a *Anime) IsStale() bool {
 type AID int
 
 // make AID Cacheable
+
 func (e AID) Touch()        {}
 func (e AID) IsStale() bool { return false }
 
