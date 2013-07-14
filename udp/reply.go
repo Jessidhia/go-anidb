@@ -128,7 +128,7 @@ func newGenericReply(raw []byte) (r *genericReply) {
 	tag := ""
 	text := ""
 	code, err := strconv.ParseInt(parts[0], 10, 16)
-	if err != nil {
+	if err != nil && len(parts) > 1 {
 		tag = parts[0]
 		code, err = strconv.ParseInt(parts[1], 10, 16)
 
@@ -139,10 +139,10 @@ func newGenericReply(raw []byte) (r *genericReply) {
 		text = strings.Join(parts[1:], " ")
 	}
 
-	var e *APIError = nil
+	e := err
 	// 720-799 range is for notifications
 	// 799 is an API server shutdown notice, so I guess it's okay to be an error
-	if code < 200 || (code > 299 && code < 720) || code > 798 {
+	if err == nil && code < 200 || (code > 299 && code < 720) || code > 798 {
 		e = &APIError{Code: int(code), Desc: text}
 	}
 
