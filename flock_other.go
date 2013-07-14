@@ -8,9 +8,9 @@ type flockLock struct {
 	locking.FLock
 }
 
-func lockFile(p path) fileLock {
+func lockFile(p string) fileLock {
 	flock, err := locking.NewFLock(p)
-	if err != nil {
+	if err == nil {
 		return &flockLock{FLock: flock}
 	}
 	return nil
