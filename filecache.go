@@ -48,7 +48,7 @@ func (fid FID) File() *File {
 
 type ed2kCache struct {
 	FID
-	time.Time
+	Time time.Time
 }
 
 func (c *ed2kCache) Touch() {
