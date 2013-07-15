@@ -96,21 +96,28 @@ func (r *bannedAPIReply) Error() error {
 var bannedReply udpapi.APIReply = &bannedAPIReply{}
 
 func (udp *udpWrap) sendQueue() {
+	initialWait := 6 * time.Second
+	wait := initialWait
 	for set := range udp.sendQueueCh {
+	Retry:
 		reply := <-udp.AniDBUDP.SendRecv(set.cmd, udpapi.ParamMap(set.params))
 
 		if reply.Error() == udpapi.TimeoutError {
 			// retry
-			go func(set paramSet) { udp.sendQueueCh <- set }(set)
-			continue
+			wait = (wait * 15) / 10
+			if wait > time.Minute {
+				wait = time.Minute
+			}
+			time.Sleep(wait)
+			goto Retry
 		}
+		wait = initialWait
 
 		switch reply.Code() {
 		case 403, 501, 506: // not logged in, or session expired
 			if err := udp.ReAuth(); err == nil {
 				// retry
-				go func(set paramSet) { udp.sendQueueCh <- set }(set)
-				continue
+				goto Retry
 			}
 		case 503, 504: // client library rejected
 			panic(reply.Error())
