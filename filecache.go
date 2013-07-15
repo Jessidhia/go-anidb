@@ -97,7 +97,8 @@ func (adb *AniDB) FileByID(fid FID) <-chan *File {
 		return ch
 	}
 
-	if f := fid.File(); !f.IsStale() {
+	f := fid.File()
+	if !f.IsStale() {
 		intentMap.Notify(f, keys...)
 		return ch
 	}
@@ -110,16 +111,15 @@ func (adb *AniDB) FileByID(fid FID) <-chan *File {
 				"amask": fileAmask,
 			})
 
-		var f *File
 		if reply.Error() == nil {
 			f = parseFileResponse(reply)
+
+			cache.Set(&ed2kCache{FID: f.FID}, "fid", "by-ed2k", f.Ed2kHash, f.Filesize)
+			cache.Set(f, keys...)
 		} else if reply.Code() == 320 {
 			cache.MarkInvalid(keys...)
 		}
-		if f != nil {
-			cache.Set(&ed2kCache{FID: f.FID}, "fid", "by-ed2k", f.Ed2kHash, f.Filesize)
-			cache.Set(f, keys...)
-		}
+
 		intentMap.Notify(f, keys...)
 	}()
 	return ch
@@ -148,11 +148,14 @@ func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 		return ch
 	}
 
+	fid := FID(0)
+
 	var ec ed2kCache
-	if cache.Get(&ec, keys...) == nil {
+	if cache.Get(&ec, keys...) == nil; !ec.IsStale() {
 		intentMap.Notify(ec.FID, keys...)
 		return ch
 	}
+	fid = ec.FID
 
 	go func() {
 		reply := <-adb.udp.SendRecv("FILE",
@@ -163,7 +166,6 @@ func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 				"amask": fileAmask,
 			})
 
-		fid := FID(0)
 		var f *File
 		if reply.Error() == nil {
 			f = parseFileResponse(reply)

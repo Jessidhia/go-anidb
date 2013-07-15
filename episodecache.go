@@ -55,7 +55,8 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 		return ch
 	}
 
-	if e := eid.Episode(); !e.IsStale() {
+	e := eid.Episode()
+	if !e.IsStale() {
 		intentMap.Notify(e, keys...)
 		return ch
 	}
@@ -69,7 +70,6 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 
 		udpDone := false
 
-		var e *Episode
 		for i := 0; i < 2; i++ {
 			if !ok && udpDone {
 				// couldn't get anime and we already ran the EPISODE query
@@ -94,10 +94,11 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 				}
 				udpDone = true
 			}
-			<-adb.AnimeByID(AID(aid)) // this caches episodes...
-			e = eid.Episode()         // ...so this is now a cache hit
+			a := <-adb.AnimeByID(AID(aid)) // this caches episodes...
+			ep := eid.Episode()            // ...so this is now a cache hit
 
-			if e != nil {
+			if !ep.IsStale() {
+				e = ep
 				break
 			} else {
 				// if this is somehow still a miss, then the EID<->AID map broke

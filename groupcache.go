@@ -72,7 +72,8 @@ func (adb *AniDB) GroupByID(gid GID) <-chan *Group {
 		return ch
 	}
 
-	if g := gid.Group(); !g.IsStale() {
+	g := gid.Group()
+	if !g.IsStale() {
 		intentMap.Notify(g, keys...)
 		return ch
 	}
@@ -81,16 +82,14 @@ func (adb *AniDB) GroupByID(gid GID) <-chan *Group {
 		reply := <-adb.udp.SendRecv("GROUP",
 			paramMap{"gid": gid})
 
-		var g *Group
 		if reply.Error() == nil {
 			g = parseGroupReply(reply)
-		} else if reply.Code() == 350 {
-			cache.MarkInvalid(keys...)
-		}
-		if g != nil {
+
 			cache.Set(&gidCache{GID: g.GID}, "gid", "by-name", g.Name)
 			cache.Set(&gidCache{GID: g.GID}, "gid", "by-shortname", g.ShortName)
 			cache.Set(g, keys...)
+		} else if reply.Code() == 350 {
+			cache.MarkInvalid(keys...)
 		}
 
 		intentMap.Notify(g, keys...)
@@ -121,15 +120,21 @@ func (adb *AniDB) GroupByName(gname string) <-chan *Group {
 		return ch
 	}
 
+	gid := GID(0)
+
 	var gc gidCache
-	if cache.Get(&gc, keys...) == nil {
+	if cache.Get(&gc, keys...) == nil; !gc.IsStale() {
 		intentMap.Notify(gc.GID, keys...)
 		return ch
 	}
+	gid = gc.GID
 
-	if cache.Get(&gc, altKeys...) == nil {
-		intentMap.Notify(gc.GID, keys...)
-		return ch
+	if gid == 0 {
+		if cache.Get(&gc, altKeys...) == nil; !gc.IsStale() {
+			intentMap.Notify(gc.GID, keys...)
+			return ch
+		}
+		gid = gc.GID
 	}
 
 	go func() {
@@ -139,18 +144,16 @@ func (adb *AniDB) GroupByName(gname string) <-chan *Group {
 		var g *Group
 		if reply.Error() == nil {
 			g = parseGroupReply(reply)
-		} else if reply.Code() == 350 {
-			cache.MarkInvalid(keys...)
-		}
 
-		gid := GID(0)
-		if g != nil {
 			gid = g.GID
 
 			cache.Set(&gidCache{GID: gid}, keys...)
 			cache.Set(&gidCache{GID: gid}, altKeys...)
 			cache.Set(g, "gid", gid)
+		} else if reply.Code() == 350 {
+			cache.MarkInvalid(keys...)
 		}
+
 		intentMap.Notify(gid, keys...)
 	}()
 	return ch

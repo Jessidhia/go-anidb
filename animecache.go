@@ -107,7 +107,7 @@ func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 					ok = false
 					break Loop
 				}
-				if a := anime.populateFromHTTP(resp.anime); a == nil {
+				if !anime.populateFromHTTP(resp.anime) {
 					// HTTP ok but parsing not ok
 					if anime.PrimaryTitle == "" {
 						cache.MarkInvalid(keys...)
@@ -115,13 +115,15 @@ func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 
 					ok = false
 					break Loop
-				} else {
-					anime = a
 				}
+
 				httpChan = nil
 			case reply := <-udpChan:
 				if reply.Code() == 330 {
 					cache.MarkInvalid(keys...)
+
+					ok = false
+					break Loop
 				} else {
 					anime.Incomplete = !anime.populateFromUDP(reply)
 				}
@@ -140,9 +142,9 @@ func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 	return ch
 }
 
-func (a *Anime) populateFromHTTP(reply httpapi.Anime) *Anime {
+func (a *Anime) populateFromHTTP(reply httpapi.Anime) bool {
 	if reply.Error != "" {
-		return (*Anime)(nil)
+		return false
 	}
 
 	if a.AID != AID(reply.ID) {
@@ -254,7 +256,7 @@ func (a *Anime) populateFromHTTP(reply httpapi.Anime) *Anime {
 		}
 	}
 
-	return a
+	return true
 }
 
 func (a *Anime) populateResources(list []httpapi.Resource) {
