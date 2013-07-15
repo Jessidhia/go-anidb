@@ -124,14 +124,14 @@ func (adb *AniDB) GroupByName(gname string) <-chan *Group {
 	gid := GID(0)
 
 	var gc gidCache
-	if cache.Get(&gc, keys...) == nil; !gc.IsStale() {
+	if cache.Get(&gc, keys...) == nil && !gc.IsStale() {
 		intentMap.Notify(gc.GID, keys...)
 		return ch
 	}
 	gid = gc.GID
 
 	if gid == 0 {
-		if cache.Get(&gc, altKeys...) == nil; !gc.IsStale() {
+		if cache.Get(&gc, altKeys...) == nil && !gc.IsStale() {
 			intentMap.Notify(gc.GID, keys...)
 			return ch
 		}

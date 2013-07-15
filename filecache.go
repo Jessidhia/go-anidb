@@ -151,7 +151,7 @@ func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 	fid := FID(0)
 
 	var ec ed2kCache
-	if cache.Get(&ec, keys...) == nil; !ec.IsStale() {
+	if cache.Get(&ec, keys...) == nil && !ec.IsStale() {
 		intentMap.Notify(ec.FID, keys...)
 		return ch
 	}
