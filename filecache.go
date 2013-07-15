@@ -13,7 +13,7 @@ import (
 
 func init() {
 	gob.RegisterName("*github.com/Kovensky/go-anidb.File", &File{})
-	gob.RegisterName("*github.com/Kovensky/go-anidb.ed2kCache", &ed2kCache{})
+	gob.RegisterName("*github.com/Kovensky/go-anidb.fidCache", &fidCache{})
 	gob.RegisterName("github.com/Kovensky/go-anidb.FID", FID(0))
 }
 
@@ -46,16 +46,16 @@ func (fid FID) File() *File {
 	return nil
 }
 
-type ed2kCache struct {
+type fidCache struct {
 	FID
 	Time time.Time
 }
 
-func (c *ed2kCache) Touch() {
+func (c *fidCache) Touch() {
 	c.Time = time.Now()
 }
 
-func (c *ed2kCache) IsStale() bool {
+func (c *fidCache) IsStale() bool {
 	return time.Now().Sub(c.Time) > FileCacheDuration
 }
 
@@ -114,7 +114,7 @@ func (adb *AniDB) FileByID(fid FID) <-chan *File {
 		if reply.Error() == nil {
 			f = parseFileResponse(reply)
 
-			cache.Set(&ed2kCache{FID: f.FID}, "fid", "by-ed2k", f.Ed2kHash, f.Filesize)
+			cache.Set(&fidCache{FID: f.FID}, "fid", "by-ed2k", f.Ed2kHash, f.Filesize)
 			cache.Set(f, keys...)
 		} else if reply.Code() == 320 {
 			cache.MarkInvalid(keys...)
@@ -150,7 +150,7 @@ func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 
 	fid := FID(0)
 
-	var ec ed2kCache
+	var ec fidCache
 	if cache.Get(&ec, keys...) == nil && !ec.IsStale() {
 		intentMap.Notify(ec.FID, keys...)
 		return ch
@@ -172,7 +172,7 @@ func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 
 			fid = f.FID
 
-			cache.Set(&ed2kCache{FID: fid}, keys...)
+			cache.Set(&fidCache{FID: fid}, keys...)
 			cache.Set(f, "fid", fid)
 		} else if reply.Code() == 320 { // file not found
 			cache.MarkInvalid(keys...)
