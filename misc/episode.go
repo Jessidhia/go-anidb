@@ -89,7 +89,7 @@ func (ep *Episode) scale() int {
 func (ep *Episode) ContainsEpisodes(ec EpisodeContainer) bool {
 	switch e := ec.(type) {
 	case *Episode:
-		return ep != nil && ep.Type == e.Type && ep.Number == ep.Number
+		return ep != nil && ep.Type == e.Type && ep.Number == e.Number
 	case *EpisodeRange:
 	case *EpisodeList:
 		return EpisodeList{&EpisodeRange{Type: ep.Type, Start: ep, End: ep}}.ContainsEpisodes(ep)
