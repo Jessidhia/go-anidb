@@ -10,14 +10,14 @@ import (
 
 type stringifyVec struct {
 	result []string
-	data   []interface{}
+	data   []cacheKey
 }
 
 func TestStringify(T *testing.T) {
 	T.Parallel()
 
 	vec := []stringifyVec{
-		stringifyVec{[]string{"a"}, []interface{}{"a"}},
+		stringifyVec{[]string{"a"}, []cacheKey{"a"}},
 	}
 	for i, v := range vec {
 		str := stringify(v.data...)
@@ -29,7 +29,7 @@ func TestStringify(T *testing.T) {
 
 type cachePathVec struct {
 	path string
-	data []interface{}
+	data []cacheKey
 }
 
 var testDir = path.Join(os.TempDir(), "testing", "anidb")
@@ -40,8 +40,8 @@ func TestCachePath(T *testing.T) {
 	T.Parallel()
 
 	vec := []cachePathVec{
-		cachePathVec{path.Join(testDir, "a"), []interface{}{"a"}},
-		cachePathVec{path.Join(testDir, "b", "c", "d"), []interface{}{"b", "c", "d"}},
+		cachePathVec{path.Join(testDir, "a"), []cacheKey{"a"}},
+		cachePathVec{path.Join(testDir, "b", "c", "d"), []cacheKey{"b", "c", "d"}},
 	}
 	for i, v := range vec {
 		str := cachePath(v.data...)
