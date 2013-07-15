@@ -90,10 +90,13 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 					if id, err := strconv.ParseInt(parts[1], 10, 32); err == nil {
 						ok = true
 						aid = AID(id)
+					} else {
+						break
 					}
 				} else if reply.Code() == 340 {
 					cache.MarkInvalid(keys...)
 					cache.Delete(keys...) // deleted EID?
+					break
 				} else {
 					break
 				}
@@ -106,8 +109,6 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 				e = ep
 				break
 			} else {
-				ok = false
-
 				// check to see if we looked in the right AID
 				found := false
 				if a != nil {
@@ -124,6 +125,7 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 					break
 				} else {
 					// otherwise, the EID<->AID map broke
+					ok = false
 					cache.Delete("aid", "by-eid", eid)
 				}
 			}
