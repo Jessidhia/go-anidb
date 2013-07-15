@@ -110,7 +110,7 @@ func (a *Anime) EpisodeList(c misc.EpisodeContainer) (eps []*Episode) {
 
 	for i, e := range a.Episodes {
 		if c.ContainsEpisodes(&e.Episode) {
-			eps = append(eps, &a.Episodes[i])
+			eps = append(eps, a.Episodes[i])
 		}
 	}
 	return

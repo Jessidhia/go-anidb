@@ -227,7 +227,7 @@ func (a *Anime) populateFromHTTP(reply httpapi.Anime) bool {
 			titles[Language(title.Lang)] = title.Title
 		}
 
-		e := Episode{
+		e := &Episode{
 			EID: EID(ep.ID),
 			AID: a.AID,
 
@@ -243,7 +243,7 @@ func (a *Anime) populateFromHTTP(reply httpapi.Anime) bool {
 			Titles: titles,
 		}
 		counts[e.Type]++
-		cacheEpisode(&e)
+		cacheEpisode(e)
 
 		a.Episodes = append(a.Episodes, e)
 	}
