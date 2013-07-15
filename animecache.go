@@ -53,7 +53,7 @@ type httpAnimeResponse struct {
 	err   error
 }
 
-// Retrieves an Anime by its AID. Uses both HTTP and UDP APIs,
+// Retrieves an Anime by its AID. Uses both the HTTP and UDP APIs,
 // but can work without the UDP API.
 func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 	keys := []cacheKey{"aid", aid}

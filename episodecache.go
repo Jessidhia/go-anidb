@@ -40,6 +40,10 @@ func cacheEpisode(ep *Episode) {
 }
 
 // Retrieves an Episode by its EID.
+//
+// If we know which AID owns this EID, then it's equivalent
+// to an Anime query. Otherwise, uses both the HTTP and UDP
+// APIs to retrieve it.
 func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 	keys := []cacheKey{"eid", eid}
 	ch := make(chan *Episode, 1)

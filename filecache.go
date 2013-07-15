@@ -80,7 +80,7 @@ func (f *File) Prefetch(adb *AniDB) <-chan *File {
 	return ch
 }
 
-// Retrieves a File by its FID.
+// Retrieves a File by its FID. Uses the UDP API.
 func (adb *AniDB) FileByID(fid FID) <-chan *File {
 	keys := []cacheKey{"fid", fid}
 
@@ -125,7 +125,7 @@ func (adb *AniDB) FileByID(fid FID) <-chan *File {
 	return ch
 }
 
-// Retrieves a File by its Ed2kHash + Filesize combination.
+// Retrieves a File by its Ed2kHash + Filesize combination. Uses the UDP API.
 func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 	keys := []cacheKey{"fid", "by-ed2k", ed2k, size}
 
