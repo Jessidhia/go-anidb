@@ -121,6 +121,8 @@ func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 			case reply := <-udpChan:
 				if reply.Code() == 330 {
 					cache.MarkInvalid(keys...)
+					// deleted AID?
+					cache.Delete(keys...)
 
 					ok = false
 					break Loop

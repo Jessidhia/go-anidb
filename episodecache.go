@@ -89,6 +89,7 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 					}
 				} else if reply.Code() == 340 {
 					cache.MarkInvalid(keys...)
+					cache.Delete(keys...) // deleted EID?
 				} else {
 					break
 				}
@@ -101,9 +102,26 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 				e = ep
 				break
 			} else {
-				// if this is somehow still a miss, then the EID<->AID map broke
-				cache.Delete("aid", "by-eid", eid)
 				ok = false
+
+				// check to see if we looked in the right AID
+				found := false
+				if a != nil {
+					for _, ep := range a.Episodes {
+						if eid == ep.EID {
+							found = true
+							break
+						}
+					}
+				}
+
+				// if found, then it's just that the anime is also stale (offline?)
+				if found {
+					break
+				} else {
+					// otherwise, the EID<->AID map broke
+					cache.Delete("aid", "by-eid", eid)
+				}
 			}
 		}
 		intentMap.Notify(e, keys...)

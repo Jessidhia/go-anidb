@@ -90,6 +90,7 @@ func (adb *AniDB) GroupByID(gid GID) <-chan *Group {
 			cache.Set(g, keys...)
 		} else if reply.Code() == 350 {
 			cache.MarkInvalid(keys...)
+			cache.Delete(keys...) // deleted group?
 		}
 
 		intentMap.Notify(g, keys...)
@@ -152,6 +153,8 @@ func (adb *AniDB) GroupByName(gname string) <-chan *Group {
 			cache.Set(g, "gid", gid)
 		} else if reply.Code() == 350 {
 			cache.MarkInvalid(keys...)
+			cache.Delete(keys...) // renamed group?
+			cache.Delete(altKeys...)
 		}
 
 		intentMap.Notify(gid, keys...)
