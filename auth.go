@@ -119,10 +119,10 @@ func (adb *AniDB) Auth(username, password, udpKey string) (err error) {
 
 // Logs the user out and removes the credentials from the AniDB struct.
 func (adb *AniDB) Logout() error {
-	if adb.udp.connected {
-		adb.udp.credentials.shred()
-		adb.udp.credentials = nil
+	adb.udp.credentials.shred()
+	adb.udp.credentials = nil
 
+	if adb.udp.connected {
 		adb.udp.connected = false
 		return adb.udp.Logout()
 	}
