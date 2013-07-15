@@ -56,10 +56,7 @@ func (c *gidCache) IsStale() bool {
 	return true
 }
 
-// Returns a Group from the cache if possible.
-//
-// If the Group is stale, then retrieves the Group
-// through the UDP API.
+// Retrieves a Group by its GID.
 func (adb *AniDB) GroupByID(gid GID) <-chan *Group {
 	keys := []cacheKey{"gid", gid}
 	ch := make(chan *Group, 1)
@@ -101,6 +98,7 @@ func (adb *AniDB) GroupByID(gid GID) <-chan *Group {
 	return ch
 }
 
+// Retrieves a Group by its name. Either full or short names are matched.
 func (adb *AniDB) GroupByName(gname string) <-chan *Group {
 	keys := []cacheKey{"gid", "by-name", gname}
 	altKeys := []cacheKey{"gid", "by-shortname", gname}

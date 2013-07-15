@@ -39,11 +39,7 @@ func cacheEpisode(ep *Episode) {
 	cache.Set(ep, "eid", ep.EID)
 }
 
-// Retrieves the Episode from the cache if possible.
-//
-// If the result is stale, then queries the UDP API to
-// know which AID owns this EID, then gets the episode
-// from the Anime.
+// Retrieves an Episode by its EID.
 func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 	keys := []cacheKey{"eid", eid}
 	ch := make(chan *Episode, 1)

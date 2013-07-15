@@ -53,11 +53,8 @@ type httpAnimeResponse struct {
 	err   error
 }
 
-// Retrieves an Anime from the cache if possible. If it isn't cached,
-// or if the cache is stale, queries both the UDP and HTTP APIs
-// for data.
-//
-// Note: This can take at least 4 seconds during heavy traffic.
+// Retrieves an Anime by its AID. Uses both HTTP and UDP APIs,
+// but can work without the UDP API.
 func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 	keys := []cacheKey{"aid", aid}
 	ch := make(chan *Anime, 1)

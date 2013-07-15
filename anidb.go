@@ -6,6 +6,10 @@ import (
 )
 
 // Main struct for the client, contains all non-shared state.
+//
+// All ObjectByKey methods (AnimeByID, GroupByName, etc) first try to read
+// from the cache. If the sought object isn't cached, or if the cache is
+// stale, then the appropriate API is queried.
 type AniDB struct {
 	Timeout time.Duration // Timeout for the various calls (default: 45s)
 
