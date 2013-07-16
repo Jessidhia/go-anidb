@@ -2,11 +2,13 @@ package anidb
 
 import (
 	"encoding/gob"
+	"fmt"
 	"github.com/Kovensky/go-anidb/misc"
 	"github.com/Kovensky/go-anidb/udp"
 	"image"
 	"log"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -119,7 +121,7 @@ func (adb *AniDB) FileByID(fid FID) <-chan *File {
 			})
 
 		if reply.Error() == nil {
-			f = parseFileResponse(reply)
+			f = adb.parseFileResponse(reply, false)
 
 			cache.Set(&fidCache{FID: f.FID}, "fid", "by-ed2k", f.Ed2kHash, f.Filesize)
 			cache.Set(f, keys...)
@@ -185,7 +187,7 @@ func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 
 		var f *File
 		if reply.Error() == nil {
-			f = parseFileResponse(reply)
+			f = adb.parseFileResponse(reply, false)
 
 			fid = f.FID
 
@@ -230,7 +232,7 @@ func sanitizeCodec(codec string) string {
 	return codec
 }
 
-func parseFileResponse(reply udpapi.APIReply) *File {
+func (adb *AniDB) parseFileResponse(reply udpapi.APIReply, calledFromFIDsByGID bool) *File {
 	if reply.Error() != nil {
 		return nil
 	}
@@ -241,12 +243,113 @@ func parseFileResponse(reply udpapi.APIReply) *File {
 	parts := strings.Split(reply.Lines()[1], "|")
 	ints := make([]int64, len(parts))
 	for i, p := range parts {
-		ints[i], _ = strconv.ParseInt(parts[i], 10, 64)
-		log.Printf("#%d: %s\n", i, p)
+		ints[i], _ = strconv.ParseInt(p, 10, 64)
 	}
 
-	// how does epno look like?
-	log.Println("epno: " + parts[23])
+	partial := false
+
+	rels := strings.Split(parts[4], "'")
+	relList := make([]EID, 0, len(parts[4]))
+	related := make(RelatedEpisodes, len(parts[4]))
+	for _, rel := range rels {
+		r := strings.Split(rel, ",")
+		if len(r) < 2 {
+			continue
+		}
+
+		eid, _ := strconv.ParseInt(r[0], 10, 32)
+		pct, _ := strconv.ParseInt(r[1], 10, 32)
+		relList = append(relList, EID(eid))
+		related[EID(eid)] = float32(pct) / 100
+
+		if pct != 100 {
+			partial = true
+		}
+	}
+
+	epno := misc.ParseEpisodeList(parts[23])
+	fid := FID(ints[0])
+	aid := AID(ints[1])
+	eid := EID(ints[2])
+	gid := GID(ints[3])
+
+	if !epno[0].Start.ContainsEpisodes(epno[0].End) || len(epno) > 1 || len(relList) > 0 {
+		// epno is broken -- we need to sanitize it
+		thisEp := <-adb.EpisodeByID(eid)
+		bad := false
+		if thisEp != nil {
+			parts := make([]string, 1, len(relList)+1)
+			parts[0] = thisEp.Episode.String()
+
+			// everything after this SHOULD be cache hits now, unless this is somehow
+			// linked with an EID from a different anime (*stares at Haruhi*).
+			// We don't want to use eps from different AIDs anyway, so that makes
+			// the job easier.
+
+			// We check if the related episodes are all in sequence from this one.
+			// If they are, we build a new epno with the sequence. Otherwise,
+			// our epno will only have the primary episode.
+
+			// gather the episode numbers
+			for _, eid := range relList {
+				if ep := eid.Episode(); ep != nil && ep.AID == thisEp.AID {
+					parts = append(parts, ep.Episode.String())
+				} else {
+					bad = true
+					break
+				}
+			}
+
+			test := misc.EpisodeList{}
+			// only if we didn't break the loop
+			if !bad {
+				test = misc.ParseEpisodeList(strings.Join(parts, ","))
+			}
+
+			if partial {
+				if calledFromFIDsByGID {
+					epno = test
+					log.Printf("UDP!!! FID %d is only part of episode %s with no complementary files", fid, epno)
+				} else if len(test) == 1 && test[0].Start.Number == test[0].End.Number {
+					fids := []int{}
+
+					for fid := range adb.FIDsByGID(thisEp, gid) {
+						fids = append(fids, int(fid))
+					}
+					if len(fids) >= 1 && fids[0] == 0 {
+						fids = fids[1:]
+						// Only entry was API error
+						if len(fids) == 0 {
+							return nil
+						}
+					}
+					sort.Sort(sort.IntSlice(fids))
+					idx := sort.SearchInts(fids, int(fid))
+					if idx == len(fids) {
+						panic(fmt.Sprintf("FID %d couldn't locate itself", fid))
+					}
+
+					epno = test
+
+					// equate pointers
+					epno[0].End = epno[0].Start
+
+					epno[0].Start.Parts = len(fids)
+					epno[0].Start.Part = idx
+				} else {
+					panic(fmt.Sprintf("Don't know what to do with partial episode %s (EID %d)", test, eid))
+				}
+			} else {
+				// if they're all in sequence, then we'll only have a single range in the list
+				if len(test) == 1 {
+					epno = test
+				} else {
+					// use only the primary epno then
+					epno = misc.ParseEpisodeList(thisEp.Episode.String())
+				}
+			}
+		}
+	}
 
 	version := FileVersion(1)
 	switch i := ints[6]; {
@@ -295,14 +398,16 @@ func parseFileResponse(reply udpapi.APIReply) *File {
 	}
 
 	return &File{
-		FID: FID(ints[0]),
+		FID: fid,
 
-		AID: AID(ints[1]),
-		EID: EID(ints[2]),
-		GID: GID(ints[3]),
+		AID: aid,
+		EID: eid,
+		GID: gid,
 
-		OtherEpisodes: misc.ParseEpisodeList(parts[4]).Simplify(),
-		Deprecated:    ints[5] != 0,
+		EpisodeNumber: epno,
+
+		RelatedEpisodes: related,
+		Deprecated:      ints[5] != 0,
 
 		CRCMatch:   ints[6]&fileStateCRCOK != 0,
 		BadCRC:     ints[6]&fileStateCRCERR != 0,

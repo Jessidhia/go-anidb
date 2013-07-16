@@ -114,7 +114,7 @@ func (adb *AniDB) FIDsByGID(ep *Episode, gid GID) <-chan FID {
 
 		switch reply.Code() {
 		case 220:
-			f := parseFileResponse(reply)
+			f := adb.parseFileResponse(reply, true)
 
 			fids.FIDs = []FID{f.FID}
 			cache.Set(&fids, keys...)

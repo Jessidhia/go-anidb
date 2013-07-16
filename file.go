@@ -1,9 +1,11 @@
 package anidb
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/Kovensky/go-anidb/misc"
 	"image"
+	"strconv"
 	"time"
 )
 
@@ -38,6 +40,8 @@ type File struct {
 	EID EID
 	GID GID
 
+	EpisodeNumber misc.EpisodeList
+
 	Incomplete bool
 
 	Deprecated bool
@@ -62,7 +66,36 @@ type File struct {
 
 	Source FileSource
 
-	OtherEpisodes misc.EpisodeList
+	// Map of related EIDs to percentages (range 0.0-1.0).
+	// The percentage indicates how much of the EID is covered by this file.
+	RelatedEpisodes RelatedEpisodes
 
 	Cached time.Time
+}
+
+type RelatedEpisodes map[EID]float32
+
+func (er RelatedEpisodes) MarshalJSON() ([]byte, error) {
+	generic := make(map[string]float32, len(er))
+	for k, v := range er {
+		generic[strconv.Itoa(int(k))] = v
+	}
+	return json.Marshal(generic)
+}
+
+func (er RelatedEpisodes) UnmarshalJSON(b []byte) error {
+	var generic map[string]float32
+	if err := json.Unmarshal(b, &generic); err != nil {
+		return err
+	}
+	for k, v := range generic {
+		ik, err := strconv.ParseInt(k, 10, 32)
+		if err != nil {
+			return err
+		}
+
+		er[EID(ik)] = v
+	}
+
+	return nil
 }
