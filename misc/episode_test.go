@@ -12,20 +12,11 @@ func ExampleParseEpisode() {
 	fmt.Printf("%#v\n", misc.ParseEpisode("")) // invalid episode
 
 	// Output:
-	// &misc.Episode{Type:1, Number:1}
-	// &misc.Episode{Type:2, Number:2}
-	// &misc.Episode{Type:1, Number:3}
+	// &misc.Episode{Type:1, Number:1, Part:-1, Parts:0}
+	// &misc.Episode{Type:2, Number:2, Part:-1, Parts:0}
+	// &misc.Episode{Type:1, Number:3, Part:-1, Parts:0}
 	// (*misc.Episode)(nil)
 }
-
-//	ParseEpisodeRange("1")     <=> ep := ParseEpisode("1");
-//		&EpisodeRange{Type: EpisodeTypeRegular, Start: ep, End: ep}
-//	ParseEpisodeRange("S1-")   <=>
-//		&EpisodeRange{Type: EpisodeTypeSpecial, Start: ParseEpisode("S1")}
-//	ParseEpisodeRange("T1-T3") <=>
-//		&EpisodeRange{Type: EpisodeTypeTrailer, Start: ParseEpisode("T1"), End: ParseEpisode("T3")}
-//	ParseEpisodeRange("5-S3")  <=> nil // different episode types in range
-//	ParseEpisodeRange("")      <=> nil // invalid start of range
 
 func ExampleParseEpisodeRange() {
 	fmt.Println(misc.ParseEpisodeRange("01"))
@@ -40,4 +31,24 @@ func ExampleParseEpisodeRange() {
 	// T1-T3
 	// <nil>
 	// <nil>
+}
+
+func ExamplePartialEpisode() {
+	eps := []*misc.Episode{
+		misc.ParseEpisode("1.0"),
+		misc.ParseEpisode("1.1"),
+	}
+	for _, ep := range eps {
+		fmt.Printf("%#v %s\n", ep, ep)
+	}
+	for _, ep := range eps {
+		ep.Parts = 2
+		fmt.Printf("%s\n", ep)
+	}
+
+	// Output:
+	// &misc.Episode{Type:1, Number:1, Part:0, Parts:0} 1.0
+	// &misc.Episode{Type:1, Number:1, Part:1, Parts:0} 1.1
+	// 1.00
+	// 1.50
 }

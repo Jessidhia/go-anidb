@@ -73,6 +73,10 @@ func (et EpisodeType) String() string {
 type Episode struct {
 	Type   EpisodeType
 	Number int
+	Part   int
+	Parts  int
+}
+
 // returns how many digits are needed to represent this int
 func scale(i int) int {
 	return 1 + int(math.Floor(math.Log10(float64(i))))
@@ -97,7 +101,14 @@ func (ep *Episode) scale() int {
 func (ep *Episode) ContainsEpisodes(ec EpisodeContainer) bool {
 	switch e := ec.(type) {
 	case *Episode:
-		return ep != nil && ep.Type == e.Type && ep.Number == e.Number
+		if ep == nil {
+			return false
+		}
+		basic := ep.Type == e.Type && ep.Number == e.Number
+		if ep.Part < 0 { // a whole episode contains any partial episodes
+			return basic
+		}
+		return basic && ep.Part == e.Part
 	case *EpisodeRange:
 	case *EpisodeList:
 		return EpisodeList{&EpisodeRange{Type: ep.Type, Start: ep, End: ep}}.ContainsEpisodes(ep)
@@ -107,7 +118,16 @@ func (ep *Episode) ContainsEpisodes(ec EpisodeContainer) bool {
 }
 
 func (ep *Episode) Format(width int) string {
-	return fmt.Sprintf("%s%0"+strconv.Itoa(width)+"d", ep.Type, ep.Number)
+	if ep.Part < 0 { // whole episode
+		return fmt.Sprintf("%s%0"+strconv.Itoa(width)+"d", ep.Type, ep.Number)
+	}
+	if ep.Parts != 0 { // part X of Y
+		frac := float64(ep.Number) + float64(ep.Part)/float64(ep.Parts)
+
+		return fmt.Sprintf("%s%0"+strconv.Itoa(width)+".2f", ep.Type, frac)
+	}
+	// part N
+	return fmt.Sprintf("%s%0"+strconv.Itoa(width)+"d.%d", ep.Type, ep.Number, ep.Part)
 }
 
 func (ep *Episode) FormatLog(max int) string {
@@ -117,12 +137,24 @@ func (ep *Episode) FormatLog(max int) string {
 // Parses a string in the usual AniDB API episode format and converts into
 // an Episode.
 func ParseEpisode(s string) *Episode {
+	p := int64(-1)
+
+	parts := strings.Split(s, ".")
+	switch len(parts) {
+	case 1: // no worries
+	case 2:
+		s = parts[0]
+		p, _ = strconv.ParseInt(parts[1], 10, 32)
+	default: // too many dots
+		return nil
+	}
+
 	if no, err := strconv.ParseInt(s, 10, 32); err == nil {
-		return &Episode{Type: EpisodeTypeRegular, Number: int(no)}
+		return &Episode{Type: EpisodeTypeRegular, Number: int(no), Part: int(p)}
 	} else if len(s) < 1 {
 		// s too short
 	} else if no, err = strconv.ParseInt(s[1:], 10, 30); err == nil {
-		return &Episode{Type: parseEpisodeType(s[:1]), Number: int(no)}
+		return &Episode{Type: parseEpisodeType(s[:1]), Number: int(no), Part: int(p)}
 	}
 	return nil
 }

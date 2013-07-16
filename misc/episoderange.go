@@ -106,7 +106,13 @@ func (a *EpisodeRange) Merge(b *EpisodeRange) (c *EpisodeRange) {
 	if a.touches(b) {
 		c = &EpisodeRange{Type: a.Type}
 
-		if a.Start.Number <= b.Start.Number {
+		if a.Start.Number == b.Start.Number {
+			if a.Start.Part <= b.Start.Part {
+				c.Start = a.Start
+			} else {
+				c.Start = b.Start
+			}
+		} else if a.Start.Number < b.Start.Number {
 			c.Start = a.Start
 		} else {
 			c.Start = b.Start
@@ -115,7 +121,13 @@ func (a *EpisodeRange) Merge(b *EpisodeRange) (c *EpisodeRange) {
 		switch {
 		case a.End == nil || b.End == nil:
 			c.End = nil
-		case a.End.Number >= b.End.Number:
+		case a.End.Number == b.End.Number:
+			if a.End.Part >= b.End.Part {
+				c.End = a.End
+			} else {
+				c.End = b.End
+			}
+		case a.End.Number > b.End.Number:
 			c.End = a.End
 		default:
 			c.End = b.End
@@ -135,8 +147,9 @@ func (a *EpisodeRange) Equals(b *EpisodeRange) bool {
 	}
 
 	if a.Type == b.Type {
-		if a.End == b.End || (a.End != nil && b.End != nil && a.End.Number == b.End.Number) {
-			if a.Start == b.Start || a.Start.Number == b.Start.Number {
+		if a.End == b.End || (a.End != nil && b.End != nil &&
+			a.End.Number == b.End.Number && a.End.Part == b.End.Part) {
+			if a.Start == b.Start || a.Start.Number == b.Start.Number && a.Start.Part == b.Start.Part {
 				return true
 			}
 		}
@@ -144,46 +157,131 @@ func (a *EpisodeRange) Equals(b *EpisodeRange) bool {
 	return false
 }
 
+// CORNER CASE: e.g. 1.3,2.0 (or 1.3,2) always touch,
+// even if there's an unlisted 1.4 between them; unless
+// the part count is known.
 func (a *EpisodeRange) touches(b *EpisodeRange) bool {
 	if a == nil || b == nil || a.Type != b.Type {
 		return false
 	}
 
 	switch {
+	case a == b:
+		// log.Println("same pointers")
+		return true
+	case a.Start == b.Start, a.End != nil && a.End == b.End:
+		// log.Println("share pointers")
+		return true
+
 	case a.End == nil:
 		switch {
 		case b.End == nil:
-			// both infinite
+			// log.Println("both infinite")
 			return true
 
-		case b.End.Number >= a.Start.Number-1:
-			// {b  [ }  a ...
-			// start-1 so it's still true when they're only adjacent
+		case b.End.Number == a.Start.Number:
+			switch {
+			// either is whole, or parts are adjacent/overlap
+			case b.End.Part == -1, a.Start.Part == -1,
+				b.End.Part >= a.Start.Part-1:
+				// log.Printf("{ %s [} %s ...", b.End, a.Start)
+				return true
+			}
+		// only if start of next range is whole or is first part
+		case b.End.Number == a.Start.Number-1 && a.Start.Part <= 0:
+			switch {
+			// end is whole, or is last part, or part count is unknown
+			case b.End.Part == -1, b.End.Parts == 0,
+				b.End.Part == b.End.Parts:
+				// log.Printf("{ %s }[ %s ...", b.End, a.Start)
+				return true
+			}
+		case b.End.Number > a.Start.Number:
+			// log.Printf("{ %s [ } %s ...", b.End, a.Start)
 			return true
 		}
 
 	case b.End == nil:
 		switch {
-		case a.End.Number >= b.Start.Number-1:
-			// [a  { ]  b ...
+		case a.End.Number == b.Start.Number:
+			switch {
+			case a.End.Part == -1, b.Start.Part == -1,
+				a.End.Part >= b.Start.Part-1:
+				// log.Printf("[ %s {] %s ...", a.End, b.Start)
+				return true
+			}
+		case a.End.Number == b.Start.Number-1 && b.Start.Part <= 0:
+			switch {
+			case a.End.Part == -1, a.End.Parts == 0,
+				a.End.Part == a.End.Parts:
+				// log.Printf("[ %s ]{ %s ...", a.End, b.Start)
+				return true
+			}
+		case a.End.Number > b.Start.Number:
+			// log.Printf("[ %s { ] %s ...", a.End, b.Start)
 			return true
 		}
 
-	case a.Start.Number == b.Start.Number || a.End.Number == b.End.Number:
+	case a.Start.Number == b.Start.Number:
 		// touching
-		return true
+		switch {
+		// either is whole, or parts are immediately adjacent
+		case a.Start.Part == -1, b.Start.Part == -1,
+			a.Start.Part == b.Start.Part,
+			a.Start.Part == b.Start.Part-1,
+			a.Start.Part == b.Start.Part+1:
+			// log.Printf("[{ %s - %s ]}", a.End, b.Start)
+			return true
+		}
+	case a.End.Number == b.End.Number:
+		switch {
+		case a.End.Part == -1, b.End.Part == -1,
+			a.End.Part == b.End.Part,
+			a.End.Part == b.End.Part-1,
+			a.End.Part == b.End.Part+1:
+			// log.Printf("{[ %s - %s }]", b.End, a.Start)
+			return true
+		}
 
 	case a.End.Number < b.End.Number:
 		switch {
-		case a.End.Number >= b.Start.Number-1:
-			// [a  { ]  b}
+		case a.End.Number == b.Start.Number:
+			switch {
+			case a.End.Part == -1, b.Start.Part == -1,
+				a.End.Part >= b.Start.Part-1:
+				// log.Printf("[ %s {] %s }", a.End, b.Start)
+				return true
+			}
+		case a.End.Number == b.Start.Number-1 && b.Start.Part <= 0:
+			switch {
+			case b.End.Part == -1, b.End.Parts == 0,
+				b.End.Part == b.End.Parts:
+				// log.Printf("[ %s ]{ %s }", a.End, b.Start)
+				return true
+			}
+		case a.End.Number > b.Start.Number:
+			// log.Printf("[ %s { ] %s }", a.End, b.Start)
 			return true
 		}
 
 	case b.End.Number < a.End.Number:
 		switch {
-		case b.End.Number >= a.Start.Number-1:
-			// {b  [ }  a]
+		case b.End.Number == a.Start.Number:
+			switch {
+			case b.End.Part == -1, a.Start.Part == -1,
+				b.End.Part >= a.Start.Part-1:
+				// log.Printf("{ %s [} %s ]", b.End, a.Start)
+				return true
+			}
+		case b.End.Number == a.Start.Number-1 && a.Start.Part <= 0:
+			switch {
+			case b.End.Part == -1, b.End.Parts == 0,
+				b.End.Part == b.End.Parts:
+				// log.Printf("{ %s }[ %s ]", b.End, a.Start)
+				return true
+			}
+		case b.End.Number > a.Start.Number:
+			// log.Printf("{ %s [ } %s ]", b.End, a.Start)
 			return true
 		}
 	}

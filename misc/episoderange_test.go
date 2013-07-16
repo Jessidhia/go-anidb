@@ -5,9 +5,48 @@ import (
 	"github.com/Kovensky/go-anidb/misc"
 )
 
-func ExampleEpisodeList_Simplify() {
-	a := misc.ParseEpisodeList("1,2,3,5,10-14,13-15,,S3-S6,C7-C10,S1,S7,S8-")
-	fmt.Println(a.Simplify())
+func ExampleEpisodeRange_Merge() {
+	a := misc.ParseEpisodeRange("5-7")
+	b := misc.ParseEpisodeRange("8-12")
+	fmt.Println(a.Merge(b)) // 5-7 + 8-12
 
-	// Output: 01-03,05,10-15,S1,S3-,C07-C10
+	b = misc.ParseEpisodeRange("3-6")
+	fmt.Println(a.Merge(b)) // 5-7 + 3-6
+
+	b = misc.ParseEpisodeRange("10-12")
+	fmt.Println(a.Merge(b)) // 5-7 + 10-12 (invalid, not touching)
+
+	b = misc.ParseEpisodeRange("S1-S3")
+	fmt.Println(a.Merge(b)) // 5-7 + S1-S3 (invalid, different types)
+
+	a = misc.ParseEpisodeRange("S3-S10")
+	fmt.Println(a.Merge(b)) // S3-S10 + S1-S3
+
+	// Output:
+	// 05-12
+	// 3-7
+	// <nil>
+	// <nil>
+	// S01-S10
+}
+
+func ExampleEpisodeRange_PartialMerge() {
+	a := misc.ParseEpisodeRange("2.1-2.3")
+	b := misc.ParseEpisodeRange("3.0")
+	fmt.Println(a.Merge(b)) // 2.1-2.3 + 3.0
+
+	b = misc.ParseEpisodeRange("3.1")
+	fmt.Println(a.Merge(b)) // 2.1-2.3 + 3.1
+
+	b = misc.ParseEpisodeRange("1")
+	fmt.Println(a.Merge(b)) // 2.1-2.3 + 1
+
+	a = misc.ParseEpisodeRange("2.0-2.3")
+	fmt.Println(a.Merge(b)) // 2.0-2.3 + 1
+
+	// Output:
+	// 2.1-3.0
+	// <nil>
+	// <nil>
+	// 1-2.3
 }
