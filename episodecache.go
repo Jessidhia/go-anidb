@@ -108,32 +108,16 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 				}
 				udpDone = true
 			}
-			a := <-adb.AnimeByID(AID(aid)) // this caches episodes...
-			ep := eid.Episode()            // ...so this is now a cache hit
+			a := <-adb.AnimeByID(AID(aid)) // updates the episode cache as well
+			ep := a.EpisodeByEID(eid)
 
-			if !ep.IsStale() {
+			if ep != nil {
 				e = ep
 				break
 			} else {
-				// check to see if we looked in the right AID
-				found := false
-				if a != nil {
-					for _, ep := range a.Episodes {
-						if eid == ep.EID {
-							found = true
-							break
-						}
-					}
-				}
-
-				// if found, then it's just that the anime is also stale (offline?)
-				if found {
-					break
-				} else {
-					// otherwise, the EID<->AID map broke
-					ok = false
-					cache.Delete("aid", "by-eid", eid)
-				}
+				// the EID<->AID map broke
+				ok = false
+				cache.Delete("aid", "by-eid", eid)
 			}
 		}
 		intentMap.NotifyClose(e, keys...)
