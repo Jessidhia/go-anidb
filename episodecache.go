@@ -72,8 +72,10 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 	}
 
 	go func() {
-		// The UDP API data is worse than the HTTP API anime data,
-		// try and get from the corresponding Anime
+		// The UDP API data is worse than the HTTP API anime data and
+		// might even get truncated on some pathological cases;
+		// try and get from the corresponding Anime, which uses the HTTP
+		// API episode list.
 
 		aid := AID(0)
 		ok := cache.Get(&aid, "aid", "by-eid", eid) == nil
