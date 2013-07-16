@@ -134,6 +134,9 @@ func (udp *udpWrap) sendQueue() {
 			}
 			log.Printf("UDP--- Timeout; waiting %s before retry", wait)
 
+			delete(set.params, "s")
+			delete(set.params, "tag")
+
 			time.Sleep(wait)
 			goto Retry
 		}
@@ -145,6 +148,10 @@ func (udp *udpWrap) sendQueue() {
 		case 403, 501, 506: // not logged in, or session expired
 			if r := udp.ReAuth(); r.Error() == nil {
 				// retry
+
+				delete(set.params, "s")
+				delete(set.params, "tag")
+
 				goto Retry
 			}
 		case 503, 504: // client library rejected
