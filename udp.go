@@ -149,7 +149,9 @@ func (udp *udpWrap) sendQueue() {
 			}
 		case 503, 504: // client library rejected
 			panic(reply.Error())
-		case 555: // IP (and user, possibly client) temporarily banned
+		// 555: IP (and user, possibly client) temporarily banned
+		// 601: Server down (treat the same as a ban)
+		case 555, 601:
 			setBanned()
 		}
 		set.ch <- reply
