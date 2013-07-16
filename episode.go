@@ -21,5 +21,3 @@ type Episode struct {
 
 	Cached time.Time // When the data was retrieved from the server
 }
-
-type Episodes []*Episode

@@ -70,7 +70,7 @@ type Anime struct {
 	TemporaryVotes Rating // Votes from people who are still watching this.
 	Reviews        Rating // Votes from reviewers.
 
-	Episodes Episodes // List of episodes.
+	Episodes []*Episode // List of episodes.
 
 	Awards    []string
 	Resources Resources
@@ -143,4 +143,16 @@ func (a *Anime) EpisodeByString(name string) *Episode {
 // Only works with regular (i.e. not special, etc) episodes.
 func (a *Anime) EpisodeByNumber(number int) *Episode {
 	return a.EpisodeByString(strconv.Itoa(number))
+}
+
+func (a *Anime) EpisodeByEID(eid EID) *Episode {
+	if a == nil {
+		return nil
+	}
+	for _, ep := range a.Episodes {
+		if ep.EID == eid {
+			return ep
+		}
+	}
+	return nil
 }
