@@ -49,9 +49,9 @@ type Anime struct {
 	AID AID  // The Anime ID.
 	R18 bool // Whether this anime is considered porn.
 
-	Type          AnimeType    // Production/distribution type.
-	TotalEpisodes int          // Total number of regular episodes.
-	EpisodeCount  EpisodeCount // Known numbers of the various types of episodes.
+	Type          AnimeType         // Production/distribution type.
+	TotalEpisodes int               // Total number of regular episodes.
+	EpisodeCount  misc.EpisodeCount // Known numbers of the various types of episodes.
 
 	StartDate time.Time // Date of first episode release, if available.
 	EndDate   time.Time // Date of last episode release, if available.
@@ -78,15 +78,6 @@ type Anime struct {
 	Incomplete bool      // Set if the UDP API part of the query failed.
 	Updated    time.Time // When the data was last modified in the server.
 	Cached     time.Time // When the data was retrieved from the server.
-}
-
-type EpisodeCount struct {
-	RegularCount int
-	SpecialCount int
-	CreditsCount int
-	OtherCount   int
-	TrailerCount int
-	ParodyCount  int
 }
 
 // Convenience method that runs AnimeByID on the result of

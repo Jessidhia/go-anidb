@@ -6,6 +6,15 @@ import (
 	"strings"
 )
 
+type EpisodeCount struct {
+	RegularCount int
+	SpecialCount int
+	CreditsCount int
+	OtherCount   int
+	TrailerCount int
+	ParodyCount  int
+}
+
 type EpisodeList []*EpisodeRange
 
 // Converts the EpisodeList into the AniDB API list format.

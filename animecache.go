@@ -248,7 +248,7 @@ func (a *Anime) populateFromHTTP(reply httpapi.Anime) bool {
 		a.Episodes = append(a.Episodes, e)
 	}
 
-	a.EpisodeCount = EpisodeCount{
+	a.EpisodeCount = misc.EpisodeCount{
 		RegularCount: counts[misc.EpisodeTypeRegular],
 		SpecialCount: counts[misc.EpisodeTypeSpecial],
 		CreditsCount: counts[misc.EpisodeTypeCredits],
