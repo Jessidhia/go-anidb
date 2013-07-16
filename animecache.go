@@ -6,6 +6,7 @@ import (
 	"github.com/Kovensky/go-anidb/http"
 	"github.com/Kovensky/go-anidb/misc"
 	"github.com/Kovensky/go-anidb/udp"
+	"log"
 	"sort"
 	"strconv"
 	"strings"
@@ -84,6 +85,7 @@ func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 	go func() {
 		httpChan := make(chan httpAnimeResponse, 1)
 		go func() {
+			log.Printf("HTTP>>> Anime %d", aid)
 			a, err := httpapi.GetAnime(int(aid))
 			httpChan <- httpAnimeResponse{anime: a, err: err}
 		}()
@@ -106,13 +108,25 @@ func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 		for i := 0; i < 2; i++ {
 			select {
 			case <-timeout:
-				ok = false
+				// HTTP API timeout
+				if httpChan != nil {
+					log.Printf("HTTP<<< Timeout")
+					close(httpChan)
+				}
 			case resp := <-httpChan:
 				if resp.err != nil {
+					log.Printf("HTTP<<< %v", resp.err)
 					ok = false
 					break Loop
 				}
-				if !anime.populateFromHTTP(resp.anime) {
+
+				if resp.anime.Error != "" {
+					log.Printf("HTTP<<< Error %q", resp.anime.Error)
+				}
+
+				if anime.populateFromHTTP(resp.anime) {
+					log.Printf("HTTP<<< Anime %q", anime.PrimaryTitle)
+				} else {
 					// HTTP ok but parsing not ok
 					if anime.PrimaryTitle == "" {
 						cache.MarkInvalid(keys...)
