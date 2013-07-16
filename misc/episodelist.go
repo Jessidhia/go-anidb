@@ -17,6 +17,14 @@ type EpisodeCount struct {
 
 type EpisodeList []*EpisodeRange
 
+func EpisodeToList(ep *Episode) EpisodeList {
+	return RangesToList(EpisodeToRange(ep))
+}
+
+func RangesToList(ranges ...*EpisodeRange) EpisodeList {
+	return EpisodeList(ranges)
+}
+
 // Converts the EpisodeList into the AniDB API list format.
 func (el EpisodeList) String() string {
 	scales := map[EpisodeType]int{}
@@ -132,6 +140,37 @@ func (el EpisodeList) Simplify() EpisodeList {
 	}
 	sort.Sort(nl)
 	return nl
+}
+
+func (el EpisodeList) CountEpisodes() (ec EpisodeCount) {
+	for _, er := range el {
+		var c *int
+		switch er.Type {
+		case EpisodeTypeRegular:
+			c = &ec.RegularCount
+		case EpisodeTypeSpecial:
+			c = &ec.SpecialCount
+		case EpisodeTypeCredits:
+			c = &ec.CreditsCount
+		case EpisodeTypeOther:
+			c = &ec.OtherCount
+		case EpisodeTypeTrailer:
+			c = &ec.TrailerCount
+		case EpisodeTypeParody:
+			c = &ec.ParodyCount
+		default:
+			continue
+		}
+		if *c < 0 {
+			continue
+		}
+		if er.End == nil {
+			*c = -1
+			continue
+		}
+		*c += er.End.Number - er.Start.Number
+	}
+	return
 }
 
 func (el EpisodeList) Len() int {

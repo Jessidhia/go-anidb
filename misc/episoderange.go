@@ -12,6 +12,14 @@ type EpisodeRange struct {
 	End   *Episode    // The end of the range; may be nil, which represents an endless range
 }
 
+func EpisodeToRange(ep *Episode) *EpisodeRange {
+	return &EpisodeRange{
+		Type:  ep.Type,
+		Start: ep,
+		End:   ep,
+	}
+}
+
 // Converts the EpisodeRange into AniDB API range format.
 func (er *EpisodeRange) String() string {
 	return er.Format(er.scale())
