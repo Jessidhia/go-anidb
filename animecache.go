@@ -26,10 +26,17 @@ func (a *Anime) IsStale() bool {
 	if a == nil {
 		return true
 	}
+	now := time.Now()
+	diff := now.Sub(a.Cached)
 	if a.Incomplete {
-		return time.Now().Sub(a.Cached) > AnimeIncompleteCacheDuration
+		return diff > AnimeIncompleteCacheDuration
 	}
-	return time.Now().Sub(a.Cached) > AnimeCacheDuration
+
+	// If the anime ended, and more than AnimeCacheDuration time ago at that
+	if !a.EndDate.IsZero() && now.After(a.EndDate.Add(AnimeCacheDuration)) {
+		return diff > FinishedAnimeCacheDuration
+	}
+	return diff > AnimeCacheDuration
 }
 
 // Unique Anime IDentifier.

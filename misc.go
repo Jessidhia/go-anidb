@@ -15,6 +15,10 @@ var (
 	GroupCacheDuration   = 4 * DefaultCacheDuration // They don't change that often.
 	FileCacheDuration    = 8 * DefaultCacheDuration // These change even less often.
 
+	// Used for anime that have already finished airing.
+	// It's unlikely that they get any important updates.
+	FinishedAnimeCacheDuration = 4 * AnimeCacheDuration
+
 	// Used when a request uses a non-existing key (AID, ed2k+size, etc)
 	InvalidKeyCacheDuration = 1 * time.Hour
 
