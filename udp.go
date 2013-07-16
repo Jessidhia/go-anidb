@@ -1,42 +1,33 @@
 package anidb
 
 import (
-	"encoding/gob"
 	"github.com/Kovensky/go-anidb/udp"
 	"log"
 	"sync"
 	"time"
 )
 
-func init() {
-	gob.RegisterName("*github.com/Kovensky/go-anidb.banCache", &banCache{})
-}
-
 const banDuration = 30*time.Minute + 1*time.Second
-
-type banCache struct{ time.Time }
-
-func (c *banCache) Touch() {
-	c.Time = time.Now()
-}
-func (c *banCache) IsStale() bool {
-	return time.Now().Sub(c.Time) > banDuration
-}
 
 // Returns whether the last UDP API access returned a 555 BANNED message.
 func Banned() bool {
-	var banTime banCache
-	cache.Get(&banTime, "banned")
-
-	stale := banTime.IsStale()
-	if stale {
-		cache.Delete("banned")
+	stat, err := Cache.Stat("banned")
+	if err != nil {
+		return false
 	}
-	return !stale
+
+	switch ts := stat.ModTime(); {
+	case ts.IsZero():
+		return false
+	case time.Now().Sub(ts) > banDuration:
+		return false
+	default:
+		return true
+	}
 }
 
 func setBanned() {
-	cache.Set(&banCache{}, "banned")
+	Cache.Touch("banned")
 }
 
 type paramSet struct {

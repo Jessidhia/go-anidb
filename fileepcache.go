@@ -1,18 +1,11 @@
 package anidb
 
 import (
+	"github.com/Kovensky/go-fscache"
 	"strconv"
 	"strings"
 	"time"
 )
-
-type fidList struct {
-	FIDs []FID
-	Time time.Time
-}
-
-func (l *fidList) Touch()        { l.Time = time.Now() }
-func (l *fidList) IsStale() bool { return time.Now().Sub(l.Time) > FileCacheDuration }
 
 // Gets the Files that the given Group has released for the given
 // Episode. Convenience method that calls FilesByGID.
@@ -59,7 +52,7 @@ func (adb *AniDB) FilesByGID(ep *Episode, gid GID) <-chan *File {
 // On API error (offline, etc), the first *File returned is nil,
 // followed by cached files (which may also be nil).
 func (adb *AniDB) FIDsByGID(ep *Episode, gid GID) <-chan FID {
-	keys := []cacheKey{"fid", "by-ep-gid", ep.EID, gid}
+	key := []fscache.CacheKey{"fid", "by-eid-gid", ep.EID, gid}
 
 	ch := make(chan FID, 10)
 
@@ -69,30 +62,31 @@ func (adb *AniDB) FIDsByGID(ep *Episode, gid GID) <-chan FID {
 		return ch
 	}
 
-	ic := make(chan Cacheable, 1)
+	ic := make(chan notification, 1)
 	go func() {
 		for c := range ic {
 			ch <- c.(FID)
 		}
 		close(ch)
 	}()
-	if intentMap.Intent(ic, keys...) {
+	if intentMap.Intent(ic, key...) {
 		return ch
 	}
 
-	if !cache.CheckValid(keys...) {
-		intentMap.Close(keys...)
+	if !Cache.IsValid(InvalidKeyCacheDuration, key...) {
+		intentMap.Close(key...)
 		return ch
 	}
 
-	var fids fidList
-	if cache.Get(&fids, keys...) == nil {
-		is := intentMap.LockIntent(keys...)
+	var fids []FID
+	switch ts, err := Cache.Get(&fids, key...); {
+	case err == nil && time.Now().Sub(ts) < FileCacheDuration:
+		is := intentMap.LockIntent(key...)
 		go func() {
-			defer intentMap.Free(is, keys...)
+			defer intentMap.Free(is, key...)
 			defer is.Close()
 
-			for _, fid := range fids.FIDs {
+			for _, fid := range fids {
 				is.Notify(fid)
 			}
 		}()
@@ -109,33 +103,31 @@ func (adb *AniDB) FIDsByGID(ep *Episode, gid GID) <-chan FID {
 				"amask": fileAmask,
 			})
 
-		is := intentMap.LockIntent(keys...)
-		defer intentMap.Free(is, keys...)
+		is := intentMap.LockIntent(key...)
+		defer intentMap.Free(is, key...)
 
 		switch reply.Code() {
 		case 220:
 			f := adb.parseFileResponse(reply, true)
 
-			fids.FIDs = []FID{f.FID}
-			cache.Set(&fids, keys...)
+			fids = []FID{f.FID}
+			CacheSet(&fids, key...)
 
-			cache.Set(&fidCache{FID: f.FID}, "fid", "by-ed2k", f.Ed2kHash, f.Filesize)
-			cache.Set(f, "fid", f.FID)
+			cacheFile(f)
 
 			is.NotifyClose(f.FID)
 			return
 		case 322:
 			parts := strings.Split(reply.Lines()[1], "|")
-			fids.FIDs = make([]FID, len(parts))
+			fids = make([]FID, len(parts))
 			for i := range parts {
 				id, _ := strconv.ParseInt(parts[i], 10, 32)
-				fids.FIDs[i] = FID(id)
+				fids[i] = FID(id)
 			}
 
-			cache.Set(&fids, keys...)
+			CacheSet(&fids, key...)
 		case 320:
-			cache.MarkInvalid(keys...)
-			cache.Delete(keys...)
+			Cache.SetInvalid(key...)
 			is.Close()
 			return
 		default:
@@ -143,7 +135,7 @@ func (adb *AniDB) FIDsByGID(ep *Episode, gid GID) <-chan FID {
 		}
 
 		defer is.Close()
-		for _, fid := range fids.FIDs {
+		for _, fid := range fids {
 			is.Notify(fid)
 		}
 	}()

@@ -1,11 +1,11 @@
 package anidb
 
 import (
-	"encoding/gob"
 	"fmt"
 	"github.com/Kovensky/go-anidb/http"
 	"github.com/Kovensky/go-anidb/misc"
 	"github.com/Kovensky/go-anidb/udp"
+	"github.com/Kovensky/go-fscache"
 	"log"
 	"sort"
 	"strconv"
@@ -13,13 +13,10 @@ import (
 	"time"
 )
 
-func init() {
-	gob.RegisterName("*github.com/Kovensky/go-anidb.Anime", &Anime{})
-	gob.RegisterName("github.com/Kovensky/go-anidb.AID", AID(0))
-}
+var _ cacheable = &Anime{}
 
-func (a *Anime) Touch() {
-	a.Cached = time.Now()
+func (a *Anime) setCachedTS(ts time.Time) {
+	a.Cached = ts
 }
 
 func (a *Anime) IsStale() bool {
@@ -42,15 +39,10 @@ func (a *Anime) IsStale() bool {
 // Unique Anime IDentifier.
 type AID int
 
-// make AID Cacheable
-
-func (e AID) Touch()        {}
-func (e AID) IsStale() bool { return false }
-
 // Returns a cached Anime. Returns nil if there is no cached Anime with this AID.
 func (aid AID) Anime() *Anime {
 	var a Anime
-	if cache.Get(&a, "aid", aid) == nil {
+	if CacheGet(&a, "aid", aid) == nil {
 		return &a
 	}
 	return nil
@@ -64,7 +56,7 @@ type httpAnimeResponse struct {
 // Retrieves an Anime by its AID. Uses both the HTTP and UDP APIs,
 // but can work without the UDP API.
 func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
-	keys := []cacheKey{"aid", aid}
+	key := []fscache.CacheKey{"aid", aid}
 	ch := make(chan *Anime, 1)
 
 	if aid < 1 {
@@ -72,20 +64,20 @@ func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 		close(ch)
 	}
 
-	ic := make(chan Cacheable, 1)
+	ic := make(chan notification, 1)
 	go func() { ch <- (<-ic).(*Anime); close(ch) }()
-	if intentMap.Intent(ic, keys...) {
+	if intentMap.Intent(ic, key...) {
 		return ch
 	}
 
-	if !cache.CheckValid(keys...) {
-		intentMap.NotifyClose((*Anime)(nil), keys...)
+	if !Cache.IsValid(InvalidKeyCacheDuration, key...) {
+		intentMap.NotifyClose((*Anime)(nil), key...)
 		return ch
 	}
 
 	anime := aid.Anime()
 	if !anime.IsStale() {
-		intentMap.NotifyClose(anime, keys...)
+		intentMap.NotifyClose(anime, key...)
 		return ch
 	}
 
@@ -136,13 +128,13 @@ func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 				} else {
 					// HTTP ok but parsing not ok
 					if anime.PrimaryTitle == "" {
-						cache.MarkInvalid(keys...)
+						Cache.SetInvalid(key...)
 					}
 
 					switch resp.anime.Error {
 					case "Anime not found", "aid Missing or Invalid":
 						// deleted AID?
-						cache.Delete(keys...)
+						Cache.Delete(key...)
 					}
 
 					ok = false
@@ -152,9 +144,9 @@ func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 				httpChan = nil
 			case reply := <-udpChan:
 				if reply.Code() == 330 {
-					cache.MarkInvalid(keys...)
+					Cache.SetInvalid(key...)
 					// deleted AID?
-					cache.Delete(keys...)
+					Cache.Delete(key...)
 
 					ok = false
 					break Loop
@@ -166,11 +158,11 @@ func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 		}
 		if anime.PrimaryTitle != "" {
 			if ok {
-				cache.Set(anime, keys...)
+				CacheSet(anime, key...)
 			}
-			intentMap.NotifyClose(anime, keys...)
+			intentMap.NotifyClose(anime, key...)
 		} else {
-			intentMap.NotifyClose((*Anime)(nil), keys...)
+			intentMap.NotifyClose((*Anime)(nil), key...)
 		}
 	}()
 	return ch

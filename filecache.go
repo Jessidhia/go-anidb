@@ -1,10 +1,10 @@
 package anidb
 
 import (
-	"encoding/gob"
 	"fmt"
 	"github.com/Kovensky/go-anidb/misc"
 	"github.com/Kovensky/go-anidb/udp"
+	"github.com/Kovensky/go-fscache"
 	"image"
 	"log"
 	"regexp"
@@ -14,14 +14,10 @@ import (
 	"time"
 )
 
-func init() {
-	gob.RegisterName("*github.com/Kovensky/go-anidb.File", &File{})
-	gob.RegisterName("*github.com/Kovensky/go-anidb.fidCache", &fidCache{})
-	gob.RegisterName("github.com/Kovensky/go-anidb.FID", FID(0))
-}
+var _ cacheable = &File{}
 
-func (f *File) Touch() {
-	f.Cached = time.Now()
+func (f *File) setCachedTS(ts time.Time) {
+	f.Cached = ts
 }
 
 func (f *File) IsStale() bool {
@@ -34,32 +30,19 @@ func (f *File) IsStale() bool {
 	return time.Now().Sub(f.Cached) > FileCacheDuration
 }
 
+func cacheFile(f *File) {
+	CacheSet(f.FID, "fid", "by-ed2k", f.Ed2kHash, f.Filesize)
+	CacheSet(f, "fid", f.FID)
+}
+
 type FID int
-
-// make FID Cacheable
-
-func (e FID) Touch()        {}
-func (e FID) IsStale() bool { return false }
 
 func (fid FID) File() *File {
 	var f File
-	if cache.Get(&f, "fid", fid) == nil {
+	if CacheGet(&f, "fid", fid) == nil {
 		return &f
 	}
 	return nil
-}
-
-type fidCache struct {
-	FID
-	Time time.Time
-}
-
-func (c *fidCache) Touch() {
-	c.Time = time.Now()
-}
-
-func (c *fidCache) IsStale() bool {
-	return time.Now().Sub(c.Time) > FileCacheDuration
 }
 
 // Prefetches the Anime, Episode and Group that this
@@ -85,7 +68,7 @@ func (f *File) Prefetch(adb *AniDB) <-chan *File {
 
 // Retrieves a File by its FID. Uses the UDP API.
 func (adb *AniDB) FileByID(fid FID) <-chan *File {
-	keys := []cacheKey{"fid", fid}
+	key := []fscache.CacheKey{"fid", fid}
 
 	ch := make(chan *File, 1)
 
@@ -95,20 +78,20 @@ func (adb *AniDB) FileByID(fid FID) <-chan *File {
 		return ch
 	}
 
-	ic := make(chan Cacheable, 1)
+	ic := make(chan notification, 1)
 	go func() { ch <- (<-ic).(*File); close(ch) }()
-	if intentMap.Intent(ic, keys...) {
+	if intentMap.Intent(ic, key...) {
 		return ch
 	}
 
-	if !cache.CheckValid(keys...) {
-		intentMap.NotifyClose((*File)(nil), keys...)
+	if !Cache.IsValid(InvalidKeyCacheDuration, key...) {
+		intentMap.NotifyClose((*File)(nil), key...)
 		return ch
 	}
 
 	f := fid.File()
 	if !f.IsStale() {
-		intentMap.NotifyClose(f, keys...)
+		intentMap.NotifyClose(f, key...)
 		return ch
 	}
 
@@ -123,13 +106,12 @@ func (adb *AniDB) FileByID(fid FID) <-chan *File {
 		if reply.Error() == nil {
 			f = adb.parseFileResponse(reply, false)
 
-			cache.Set(&fidCache{FID: f.FID}, "fid", "by-ed2k", f.Ed2kHash, f.Filesize)
-			cache.Set(f, keys...)
+			cacheFile(f)
 		} else if reply.Code() == 320 {
-			cache.MarkInvalid(keys...)
+			Cache.SetInvalid(key...)
 		}
 
-		intentMap.NotifyClose(f, keys...)
+		intentMap.NotifyClose(f, key...)
 	}()
 	return ch
 }
@@ -138,7 +120,7 @@ var validEd2kHash = regexp.MustCompile(`\A[:xdigit:]{32}\z`)
 
 // Retrieves a File by its Ed2kHash + Filesize combination. Uses the UDP API.
 func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
-	keys := []cacheKey{"fid", "by-ed2k", ed2k, size}
+	key := []fscache.CacheKey{"fid", "by-ed2k", ed2k, size}
 
 	ch := make(chan *File, 1)
 
@@ -150,7 +132,7 @@ func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 	// AniDB always uses lower case hashes
 	ed2k = strings.ToLower(ed2k)
 
-	ic := make(chan Cacheable, 1)
+	ic := make(chan notification, 1)
 	go func() {
 		fid := (<-ic).(FID)
 		if fid > 0 {
@@ -158,23 +140,22 @@ func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 		}
 		close(ch)
 	}()
-	if intentMap.Intent(ic, keys...) {
+	if intentMap.Intent(ic, key...) {
 		return ch
 	}
 
-	if !cache.CheckValid(keys...) {
-		intentMap.NotifyClose(FID(0), keys...)
+	if !Cache.IsValid(InvalidKeyCacheDuration, key...) {
+		intentMap.NotifyClose(FID(0), key...)
 		return ch
 	}
 
 	fid := FID(0)
 
-	var ec fidCache
-	if cache.Get(&ec, keys...) == nil && !ec.IsStale() {
-		intentMap.NotifyClose(ec.FID, keys...)
+	switch ts, err := Cache.Get(&fid, key...); {
+	case err != nil && time.Now().Sub(ts) < FileCacheDuration:
+		intentMap.NotifyClose(fid, key...)
 		return ch
 	}
-	fid = ec.FID
 
 	go func() {
 		reply := <-adb.udp.SendRecv("FILE",
@@ -191,15 +172,14 @@ func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 
 			fid = f.FID
 
-			cache.Set(&fidCache{FID: fid}, keys...)
-			cache.Set(f, "fid", fid)
+			cacheFile(f)
 		} else if reply.Code() == 320 { // file not found
-			cache.MarkInvalid(keys...)
+			Cache.SetInvalid(key...)
 		} else if reply.Code() == 322 { // multiple files found
 			panic("Don't know what to do with " + strings.Join(reply.Lines(), "\n"))
 		}
 
-		intentMap.NotifyClose(fid, keys...)
+		intentMap.NotifyClose(fid, key...)
 	}()
 	return ch
 }

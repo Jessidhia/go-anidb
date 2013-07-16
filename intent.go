@@ -1,10 +1,16 @@
 package anidb
 
-import "sync"
+import (
+	"github.com/Kovensky/go-fscache"
+	"strings"
+	"sync"
+)
+
+type notification interface{}
 
 type intentStruct struct {
 	sync.Mutex
-	chs []chan Cacheable
+	chs []chan notification
 }
 
 type intentMapStruct struct {
@@ -18,6 +24,10 @@ var intentMap = &intentMapStruct{
 	m: map[string]*intentStruct{},
 }
 
+func intentKey(key ...fscache.CacheKey) string {
+	return strings.Join(fscache.Stringify(key...), "-")
+}
+
 // Register a channel to be notified when the specified keys are notified.
 // Returns whether the caller was the first to register intent for the given
 // keys.
@@ -25,8 +35,8 @@ var intentMap = &intentMapStruct{
 // Cache checks should be done after registering intent, since it's possible to
 // register Intent while a Notify is running, and the Notify is done after
 // setting the cache.
-func (m *intentMapStruct) Intent(ch chan Cacheable, keys ...cacheKey) bool {
-	key := cachePath(keys...)
+func (m *intentMapStruct) Intent(ch chan notification, keys ...fscache.CacheKey) bool {
+	key := intentKey(keys...)
 
 	m.intentLock.Lock()
 	defer m.intentLock.Unlock()
@@ -55,15 +65,15 @@ func (m *intentMapStruct) Intent(ch chan Cacheable, keys ...cacheKey) bool {
 //
 // The intentStruct can be directly unlocked, or given to Free to also
 // remove it from the intent map.
-func (m *intentMapStruct) LockIntent(keys ...cacheKey) *intentStruct {
+func (m *intentMapStruct) LockIntent(keys ...fscache.CacheKey) *intentStruct {
 	m.Lock()
 	defer m.Unlock()
 
 	return m._lockIntent(keys...)
 }
 
-func (m *intentMapStruct) _lockIntent(keys ...cacheKey) *intentStruct {
-	s, ok := m.m[cachePath(keys...)]
+func (m *intentMapStruct) _lockIntent(keys ...fscache.CacheKey) *intentStruct {
+	s, ok := m.m[intentKey(keys...)]
 	if !ok {
 		return nil
 	}
@@ -73,16 +83,16 @@ func (m *intentMapStruct) _lockIntent(keys ...cacheKey) *intentStruct {
 }
 
 // Removes the given intent from the intent map and unlocks the intentStruct.
-func (m *intentMapStruct) Free(is *intentStruct, keys ...cacheKey) {
+func (m *intentMapStruct) Free(is *intentStruct, keys ...fscache.CacheKey) {
 	m.Lock()
 	defer m.Unlock()
 
 	m._free(is, keys...)
 }
 
-func (m *intentMapStruct) _free(is *intentStruct, keys ...cacheKey) {
+func (m *intentMapStruct) _free(is *intentStruct, keys ...fscache.CacheKey) {
 	// deletes the key before unlocking, Intent needs to recheck key status
-	delete(m.m, cachePath(keys...))
+	delete(m.m, intentKey(keys...))
 	// better than unlocking then deleting -- could delete a "brand new" entry
 	is.Unlock()
 }
@@ -91,7 +101,7 @@ func (m *intentMapStruct) _free(is *intentStruct, keys ...cacheKey) {
 // also removes them from the intent map.
 //
 // Should be called after setting the cache.
-func (m *intentMapStruct) NotifyClose(v Cacheable, keys ...cacheKey) {
+func (m *intentMapStruct) NotifyClose(v notification, keys ...fscache.CacheKey) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -103,7 +113,7 @@ func (m *intentMapStruct) NotifyClose(v Cacheable, keys ...cacheKey) {
 
 // Closes all channels that are listening for the specified keys
 // and removes them from the intent map.
-func (m *intentMapStruct) Close(keys ...cacheKey) {
+func (m *intentMapStruct) Close(keys ...fscache.CacheKey) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -115,7 +125,7 @@ func (m *intentMapStruct) Close(keys ...cacheKey) {
 
 // Notifies all channels that are listening for the specified keys,
 // but doesn't close or remove them from the intent map.
-func (m *intentMapStruct) Notify(v Cacheable, keys ...cacheKey) {
+func (m *intentMapStruct) Notify(v notification, keys ...fscache.CacheKey) {
 	m.Lock()
 	defer m.Unlock()
 
@@ -126,7 +136,7 @@ func (m *intentMapStruct) Notify(v Cacheable, keys ...cacheKey) {
 }
 
 // NOTE: does not lock the stuct
-func (s *intentStruct) Notify(v Cacheable) {
+func (s *intentStruct) Notify(v notification) {
 	for _, ch := range s.chs {
 		ch <- v
 	}
@@ -141,7 +151,7 @@ func (s *intentStruct) Close() {
 }
 
 // NOTE: does not lock the struct
-func (s *intentStruct) NotifyClose(v Cacheable) {
+func (s *intentStruct) NotifyClose(v notification) {
 	for _, ch := range s.chs {
 		ch <- v
 		close(ch)

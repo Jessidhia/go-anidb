@@ -1,18 +1,16 @@
 package anidb
 
 import (
-	"encoding/gob"
+	"github.com/Kovensky/go-fscache"
 	"strconv"
 	"strings"
 	"time"
 )
 
-func init() {
-	gob.RegisterName("*github.com/Kovensky/go-anidb.Episode", &Episode{})
-}
+var _ cacheable = &Episode{}
 
-func (e *Episode) Touch() {
-	e.Cached = time.Now()
+func (e *Episode) setCachedTS(ts time.Time) {
+	e.Cached = ts
 }
 
 func (e *Episode) IsStale() bool {
@@ -28,15 +26,15 @@ type EID int
 // Retrieves the Episode corresponding to this EID from the cache.
 func (eid EID) Episode() *Episode {
 	var e Episode
-	if cache.Get(&e, "eid", eid) == nil {
+	if CacheGet(&e, "eid", eid) == nil {
 		return &e
 	}
 	return nil
 }
 
 func cacheEpisode(ep *Episode) {
-	cache.Set(ep.AID, "aid", "by-eid", ep.EID)
-	cache.Set(ep, "eid", ep.EID)
+	CacheSet(ep.AID, "aid", "by-eid", ep.EID)
+	CacheSet(ep, "eid", ep.EID)
 }
 
 // Retrieves an Episode by its EID.
@@ -45,7 +43,7 @@ func cacheEpisode(ep *Episode) {
 // to an Anime query. Otherwise, uses both the HTTP and UDP
 // APIs to retrieve it.
 func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
-	keys := []cacheKey{"eid", eid}
+	key := []fscache.CacheKey{"eid", eid}
 	ch := make(chan *Episode, 1)
 
 	if eid < 1 {
@@ -54,20 +52,20 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 		return ch
 	}
 
-	ic := make(chan Cacheable, 1)
+	ic := make(chan notification, 1)
 	go func() { ch <- (<-ic).(*Episode); close(ch) }()
-	if intentMap.Intent(ic, keys...) {
+	if intentMap.Intent(ic, key...) {
 		return ch
 	}
 
-	if !cache.CheckValid(keys...) {
-		intentMap.NotifyClose((*Episode)(nil), keys...)
+	if !Cache.IsValid(InvalidKeyCacheDuration, key...) {
+		intentMap.NotifyClose((*Episode)(nil), key...)
 		return ch
 	}
 
 	e := eid.Episode()
 	if !e.IsStale() {
-		intentMap.NotifyClose(e, keys...)
+		intentMap.NotifyClose(e, key...)
 		return ch
 	}
 
@@ -78,7 +76,8 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 		// API episode list.
 
 		aid := AID(0)
-		ok := cache.Get(&aid, "aid", "by-eid", eid) == nil
+		_, err := Cache.Get(&aid, "aid", "by-eid", eid)
+		ok := err == nil
 
 		udpDone := false
 
@@ -102,8 +101,7 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 						break
 					}
 				} else if reply.Code() == 340 {
-					cache.MarkInvalid(keys...)
-					cache.Delete(keys...) // deleted EID?
+					Cache.SetInvalid(key...)
 					break
 				} else {
 					break
@@ -119,10 +117,10 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 			} else {
 				// the EID<->AID map broke
 				ok = false
-				cache.Delete("aid", "by-eid", eid)
+				Cache.Delete("aid", "by-eid", eid)
 			}
 		}
-		intentMap.NotifyClose(e, keys...)
+		intentMap.NotifyClose(e, key...)
 	}()
 	return ch
 }

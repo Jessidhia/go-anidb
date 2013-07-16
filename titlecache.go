@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -13,12 +14,13 @@ var titlesDB = &titles.TitlesDatabase{}
 
 // Loads the database from anime-titles.dat.gz in the cache dir.
 func RefreshTitles() error {
-	if flock := lockFile(cachePath("anime-titles.dat.gz")); flock != nil {
-		flock.Lock()
-		defer flock.Unlock()
+	if lock, err := Cache.Lock("anime-titles.dat.gz"); err != nil {
+		return err
+	} else {
+		defer lock.Unlock()
 	}
 
-	fh, err := cache.Open("anime-titles.dat.gz")
+	fh, err := Cache.Open("anime-titles.dat.gz")
 	if err != nil {
 		return err
 	}
@@ -42,9 +44,13 @@ func UpdateTitles() error {
 		return nil
 	}
 
-	if flock := lockFile(cachePath("anime-titles.dat.gz")); flock != nil {
-		flock.Lock()
-		defer flock.Unlock()
+	switch lock, err := Cache.Lock("anime-titles.dat.gz"); {
+	case os.IsNotExist(err):
+		// we're creating it now
+	case err == nil:
+		defer lock.Unlock()
+	default:
+		return err
 	}
 
 	c := &http.Client{Transport: &http.Transport{DisableCompression: true}}
@@ -67,7 +73,7 @@ func UpdateTitles() error {
 		return err
 	}
 
-	fh, err := cache.Create("anime-titles.dat.gz")
+	fh, err := Cache.Create("anime-titles.dat.gz")
 	if err != nil {
 		return err
 	}

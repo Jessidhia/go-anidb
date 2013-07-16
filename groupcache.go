@@ -1,22 +1,18 @@
 package anidb
 
 import (
-	"encoding/gob"
 	"github.com/Kovensky/go-anidb/http"
 	"github.com/Kovensky/go-anidb/udp"
+	"github.com/Kovensky/go-fscache"
 	"strconv"
 	"strings"
 	"time"
 )
 
-func init() {
-	gob.RegisterName("*github.com/Kovensky/go-anidb.Group", &Group{})
-	gob.RegisterName("github.com/Kovensky/go-anidb.GID", GID(0))
-	gob.RegisterName("*github.com/Kovensky/go-anidb.gidCache", &gidCache{})
-}
+var _ cacheable = &Group{}
 
-func (g *Group) Touch() {
-	g.Cached = time.Now()
+func (g *Group) setCachedTS(ts time.Time) {
+	g.Cached = ts
 }
 
 func (g *Group) IsStale() bool {
@@ -29,36 +25,24 @@ func (g *Group) IsStale() bool {
 // Unique Group IDentifier
 type GID int
 
-// make GID cacheable
-
-func (e GID) Touch()        {}
-func (e GID) IsStale() bool { return false }
+func cacheGroup(g *Group) {
+	CacheSet(g.GID, "gid", "by-name", g.Name)
+	CacheSet(g.GID, "gid", "by-shortname", g.ShortName)
+	CacheSet(g, "gid", g.GID)
+}
 
 // Retrieves the Group from the cache.
 func (gid GID) Group() *Group {
 	var g Group
-	if cache.Get(&g, "gid", gid) == nil {
+	if CacheGet(&g, "gid", gid) == nil {
 		return &g
 	}
 	return nil
 }
 
-type gidCache struct {
-	GID
-	Time time.Time
-}
-
-func (c *gidCache) Touch() { c.Time = time.Now() }
-func (c *gidCache) IsStale() bool {
-	if c != nil && time.Now().Sub(c.Time) < GroupCacheDuration {
-		return false
-	}
-	return true
-}
-
 // Retrieves a Group by its GID. Uses the UDP API.
 func (adb *AniDB) GroupByID(gid GID) <-chan *Group {
-	keys := []cacheKey{"gid", gid}
+	key := []fscache.CacheKey{"gid", gid}
 	ch := make(chan *Group, 1)
 
 	if gid < 1 {
@@ -67,20 +51,20 @@ func (adb *AniDB) GroupByID(gid GID) <-chan *Group {
 		return ch
 	}
 
-	ic := make(chan Cacheable, 1)
+	ic := make(chan notification, 1)
 	go func() { ch <- (<-ic).(*Group); close(ch) }()
-	if intentMap.Intent(ic, keys...) {
+	if intentMap.Intent(ic, key...) {
 		return ch
 	}
 
-	if !cache.CheckValid(keys...) {
-		intentMap.NotifyClose((*Group)(nil), keys...)
+	if !Cache.IsValid(InvalidKeyCacheDuration, key...) {
+		intentMap.NotifyClose((*Group)(nil), key...)
 		return ch
 	}
 
 	g := gid.Group()
 	if !g.IsStale() {
-		intentMap.NotifyClose(g, keys...)
+		intentMap.NotifyClose(g, key...)
 		return ch
 	}
 
@@ -91,15 +75,12 @@ func (adb *AniDB) GroupByID(gid GID) <-chan *Group {
 		if reply.Error() == nil {
 			g = parseGroupReply(reply)
 
-			cache.Set(&gidCache{GID: g.GID}, "gid", "by-name", g.Name)
-			cache.Set(&gidCache{GID: g.GID}, "gid", "by-shortname", g.ShortName)
-			cache.Set(g, keys...)
+			cacheGroup(g)
 		} else if reply.Code() == 350 {
-			cache.MarkInvalid(keys...)
-			cache.Delete(keys...) // deleted group?
+			Cache.SetInvalid(key...)
 		}
 
-		intentMap.NotifyClose(g, keys...)
+		intentMap.NotifyClose(g, key...)
 	}()
 	return ch
 }
@@ -107,8 +88,8 @@ func (adb *AniDB) GroupByID(gid GID) <-chan *Group {
 // Retrieves a Group by its name. Either full or short names are matched.
 // Uses the UDP API.
 func (adb *AniDB) GroupByName(gname string) <-chan *Group {
-	keys := []cacheKey{"gid", "by-name", gname}
-	altKeys := []cacheKey{"gid", "by-shortname", gname}
+	key := []fscache.CacheKey{"gid", "by-name", gname}
+	altKey := []fscache.CacheKey{"gid", "by-shortname", gname}
 	ch := make(chan *Group, 1)
 
 	if gname == "" {
@@ -117,7 +98,7 @@ func (adb *AniDB) GroupByName(gname string) <-chan *Group {
 		return ch
 	}
 
-	ic := make(chan Cacheable, 1)
+	ic := make(chan notification, 1)
 	go func() {
 		gid := (<-ic).(GID)
 		if gid > 0 {
@@ -125,30 +106,27 @@ func (adb *AniDB) GroupByName(gname string) <-chan *Group {
 		}
 		close(ch)
 	}()
-	if intentMap.Intent(ic, keys...) {
+	if intentMap.Intent(ic, key...) {
 		return ch
 	}
 
-	if !cache.CheckValid(keys...) {
-		intentMap.NotifyClose(GID(0), keys...)
+	if !Cache.IsValid(InvalidKeyCacheDuration, key...) {
+		intentMap.NotifyClose(GID(0), key...)
 		return ch
 	}
 
 	gid := GID(0)
 
-	var gc gidCache
-	if cache.Get(&gc, keys...) == nil && !gc.IsStale() {
-		intentMap.NotifyClose(gc.GID, keys...)
+	switch ts, err := Cache.Get(&gid, key...); {
+	case err == nil && time.Now().Sub(ts) < GroupCacheDuration:
+		intentMap.NotifyClose(gid, key...)
 		return ch
-	}
-	gid = gc.GID
-
-	if gid == 0 {
-		if cache.Get(&gc, altKeys...) == nil && !gc.IsStale() {
-			intentMap.NotifyClose(gc.GID, keys...)
+	default:
+		switch ts, err = Cache.Get(&gid, altKey...); {
+		case err == nil && time.Now().Sub(ts) < GroupCacheDuration:
+			intentMap.NotifyClose(gid, key...)
 			return ch
 		}
-		gid = gc.GID
 	}
 
 	go func() {
@@ -161,16 +139,13 @@ func (adb *AniDB) GroupByName(gname string) <-chan *Group {
 
 			gid = g.GID
 
-			cache.Set(&gidCache{GID: gid}, keys...)
-			cache.Set(&gidCache{GID: gid}, altKeys...)
-			cache.Set(g, "gid", gid)
+			cacheGroup(g)
 		} else if reply.Code() == 350 {
-			cache.MarkInvalid(keys...)
-			cache.Delete(keys...) // renamed group?
-			cache.Delete(altKeys...)
+			Cache.SetInvalid(key...)
+			Cache.SetInvalid(altKey...)
 		}
 
-		intentMap.NotifyClose(gid, keys...)
+		intentMap.NotifyClose(gid, key...)
 	}()
 	return ch
 }
