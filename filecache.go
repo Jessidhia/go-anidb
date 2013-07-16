@@ -100,13 +100,13 @@ func (adb *AniDB) FileByID(fid FID) <-chan *File {
 	}
 
 	if !cache.CheckValid(keys...) {
-		intentMap.Notify((*File)(nil), keys...)
+		intentMap.NotifyClose((*File)(nil), keys...)
 		return ch
 	}
 
 	f := fid.File()
 	if !f.IsStale() {
-		intentMap.Notify(f, keys...)
+		intentMap.NotifyClose(f, keys...)
 		return ch
 	}
 
@@ -127,7 +127,7 @@ func (adb *AniDB) FileByID(fid FID) <-chan *File {
 			cache.MarkInvalid(keys...)
 		}
 
-		intentMap.Notify(f, keys...)
+		intentMap.NotifyClose(f, keys...)
 	}()
 	return ch
 }
@@ -161,7 +161,7 @@ func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 	}
 
 	if !cache.CheckValid(keys...) {
-		intentMap.Notify(FID(0), keys...)
+		intentMap.NotifyClose(FID(0), keys...)
 		return ch
 	}
 
@@ -169,7 +169,7 @@ func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 
 	var ec fidCache
 	if cache.Get(&ec, keys...) == nil && !ec.IsStale() {
-		intentMap.Notify(ec.FID, keys...)
+		intentMap.NotifyClose(ec.FID, keys...)
 		return ch
 	}
 	fid = ec.FID
@@ -197,7 +197,7 @@ func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 			panic("Don't know what to do with " + strings.Join(reply.Lines(), "\n"))
 		}
 
-		intentMap.Notify(fid, keys...)
+		intentMap.NotifyClose(fid, keys...)
 	}()
 	return ch
 }

@@ -74,13 +74,13 @@ func (adb *AniDB) GroupByID(gid GID) <-chan *Group {
 	}
 
 	if !cache.CheckValid(keys...) {
-		intentMap.Notify((*Group)(nil), keys...)
+		intentMap.NotifyClose((*Group)(nil), keys...)
 		return ch
 	}
 
 	g := gid.Group()
 	if !g.IsStale() {
-		intentMap.Notify(g, keys...)
+		intentMap.NotifyClose(g, keys...)
 		return ch
 	}
 
@@ -99,7 +99,7 @@ func (adb *AniDB) GroupByID(gid GID) <-chan *Group {
 			cache.Delete(keys...) // deleted group?
 		}
 
-		intentMap.Notify(g, keys...)
+		intentMap.NotifyClose(g, keys...)
 	}()
 	return ch
 }
@@ -130,7 +130,7 @@ func (adb *AniDB) GroupByName(gname string) <-chan *Group {
 	}
 
 	if !cache.CheckValid(keys...) {
-		intentMap.Notify(GID(0), keys...)
+		intentMap.NotifyClose(GID(0), keys...)
 		return ch
 	}
 
@@ -138,14 +138,14 @@ func (adb *AniDB) GroupByName(gname string) <-chan *Group {
 
 	var gc gidCache
 	if cache.Get(&gc, keys...) == nil && !gc.IsStale() {
-		intentMap.Notify(gc.GID, keys...)
+		intentMap.NotifyClose(gc.GID, keys...)
 		return ch
 	}
 	gid = gc.GID
 
 	if gid == 0 {
 		if cache.Get(&gc, altKeys...) == nil && !gc.IsStale() {
-			intentMap.Notify(gc.GID, keys...)
+			intentMap.NotifyClose(gc.GID, keys...)
 			return ch
 		}
 		gid = gc.GID
@@ -170,7 +170,7 @@ func (adb *AniDB) GroupByName(gname string) <-chan *Group {
 			cache.Delete(altKeys...)
 		}
 
-		intentMap.Notify(gid, keys...)
+		intentMap.NotifyClose(gid, keys...)
 	}()
 	return ch
 }

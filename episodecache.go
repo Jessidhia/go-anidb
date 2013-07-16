@@ -61,13 +61,13 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 	}
 
 	if !cache.CheckValid(keys...) {
-		intentMap.Notify((*Episode)(nil), keys...)
+		intentMap.NotifyClose((*Episode)(nil), keys...)
 		return ch
 	}
 
 	e := eid.Episode()
 	if !e.IsStale() {
-		intentMap.Notify(e, keys...)
+		intentMap.NotifyClose(e, keys...)
 		return ch
 	}
 
@@ -136,7 +136,7 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 				}
 			}
 		}
-		intentMap.Notify(e, keys...)
+		intentMap.NotifyClose(e, keys...)
 	}()
 	return ch
 }

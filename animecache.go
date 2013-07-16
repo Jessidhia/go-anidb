@@ -71,13 +71,13 @@ func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 	}
 
 	if !cache.CheckValid(keys...) {
-		intentMap.Notify((*Anime)(nil), keys...)
+		intentMap.NotifyClose((*Anime)(nil), keys...)
 		return ch
 	}
 
 	anime := aid.Anime()
 	if !anime.IsStale() {
-		intentMap.Notify(anime, keys...)
+		intentMap.NotifyClose(anime, keys...)
 		return ch
 	}
 
@@ -146,9 +146,9 @@ func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 			if ok {
 				cache.Set(anime, keys...)
 			}
-			intentMap.Notify(anime, keys...)
+			intentMap.NotifyClose(anime, keys...)
 		} else {
-			intentMap.Notify((*Anime)(nil), keys...)
+			intentMap.NotifyClose((*Anime)(nil), keys...)
 		}
 	}()
 	return ch
