@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 )
 
 type EpisodeContainer interface {
@@ -14,6 +15,10 @@ type EpisodeContainer interface {
 type Formatter interface {
 	// Returns a string where the number portion is 0-padded to fit 'width' digits
 	Format(width int) string
+
+	// Returns a string where the number portion is 0-padded to be the same length
+	// as max.
+	FormatLog(max int) string
 }
 
 type EpisodeType int
@@ -68,6 +73,9 @@ func (et EpisodeType) String() string {
 type Episode struct {
 	Type   EpisodeType
 	Number int
+// returns how many digits are needed to represent this int
+func scale(i int) int {
+	return 1 + int(math.Floor(math.Log10(float64(i))))
 }
 
 // Converts the Episode into AniDB API episode format.
@@ -80,7 +88,7 @@ func (ep *Episode) scale() int {
 	if ep == nil {
 		return 1
 	}
-	return 1 + int(math.Floor(math.Log10(float64(ep.Number))))
+	return scale(ep.Number)
 }
 
 // Returns true if ec is an Episode and is identical to this episode,
@@ -100,6 +108,10 @@ func (ep *Episode) ContainsEpisodes(ec EpisodeContainer) bool {
 
 func (ep *Episode) Format(width int) string {
 	return fmt.Sprintf("%s%0"+strconv.Itoa(width)+"d", ep.Type, ep.Number)
+}
+
+func (ep *Episode) FormatLog(max int) string {
+	return ep.Format(scale(max))
 }
 
 // Parses a string in the usual AniDB API episode format and converts into

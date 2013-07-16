@@ -40,6 +40,32 @@ func (el EpisodeList) String() string {
 	return strings.Join(parts, ",")
 }
 
+// Formats the list according to the number of digits of
+// the count for its type, given in the EpisodeCount.
+func (el EpisodeList) FormatLog(ec EpisodeCount) string {
+	parts := make([]string, len(el))
+	for i, er := range el {
+		switch er.Type {
+		case EpisodeTypeRegular:
+			parts[i] = er.FormatLog(ec.RegularCount)
+		case EpisodeTypeSpecial:
+			parts[i] = er.FormatLog(ec.SpecialCount)
+		case EpisodeTypeCredits:
+			parts[i] = er.FormatLog(ec.CreditsCount)
+		case EpisodeTypeOther:
+			parts[i] = er.FormatLog(ec.OtherCount)
+		case EpisodeTypeTrailer:
+			parts[i] = er.FormatLog(ec.TrailerCount)
+		case EpisodeTypeParody:
+			parts[i] = er.FormatLog(ec.ParodyCount)
+		default:
+			parts[i] = er.Format(er.scale())
+		}
+	}
+
+	return strings.Join(parts, ",")
+}
+
 // Returns true if any of the contained EpisodeRanges contain the
 // given EpisodeContainer.
 func (el EpisodeList) ContainsEpisodes(ec EpisodeContainer) bool {

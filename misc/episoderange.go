@@ -28,6 +28,10 @@ func (er *EpisodeRange) Format(width int) string {
 	return fmt.Sprintf("%s-%s", er.Start.Format(width), er.End.Format(width))
 }
 
+func (er *EpisodeRange) FormatLog(max int) string {
+	return er.Format(scale(max))
+}
+
 func (er *EpisodeRange) scale() int {
 	if er == nil {
 		return 1
