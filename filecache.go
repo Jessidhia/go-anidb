@@ -6,6 +6,7 @@ import (
 	"github.com/Kovensky/go-anidb/udp"
 	"image"
 	"log"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -86,6 +87,12 @@ func (adb *AniDB) FileByID(fid FID) <-chan *File {
 
 	ch := make(chan *File, 1)
 
+	if fid < 1 {
+		ch <- nil
+		close(ch)
+		return ch
+	}
+
 	ic := make(chan Cacheable, 1)
 	go func() { ch <- (<-ic).(*File); close(ch) }()
 	if intentMap.Intent(ic, keys...) {
@@ -125,11 +132,21 @@ func (adb *AniDB) FileByID(fid FID) <-chan *File {
 	return ch
 }
 
+var validEd2kHash = regexp.MustCompile(`\A[:xdigit:]{32}\z`)
+
 // Retrieves a File by its Ed2kHash + Filesize combination. Uses the UDP API.
 func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 	keys := []cacheKey{"fid", "by-ed2k", ed2k, size}
 
 	ch := make(chan *File, 1)
+
+	if size < 1 || !validEd2kHash.MatchString(ed2k) {
+		ch <- nil
+		close(ch)
+		return ch
+	}
+	// AniDB always uses lower case hashes
+	ed2k = strings.ToLower(ed2k)
 
 	ic := make(chan Cacheable, 1)
 	go func() {

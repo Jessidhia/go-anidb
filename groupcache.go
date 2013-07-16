@@ -61,6 +61,12 @@ func (adb *AniDB) GroupByID(gid GID) <-chan *Group {
 	keys := []cacheKey{"gid", gid}
 	ch := make(chan *Group, 1)
 
+	if gid < 1 {
+		ch <- nil
+		close(ch)
+		return ch
+	}
+
 	ic := make(chan Cacheable, 1)
 	go func() { ch <- (<-ic).(*Group); close(ch) }()
 	if intentMap.Intent(ic, keys...) {
@@ -104,6 +110,12 @@ func (adb *AniDB) GroupByName(gname string) <-chan *Group {
 	keys := []cacheKey{"gid", "by-name", gname}
 	altKeys := []cacheKey{"gid", "by-shortname", gname}
 	ch := make(chan *Group, 1)
+
+	if gname == "" {
+		ch <- nil
+		close(ch)
+		return ch
+	}
 
 	ic := make(chan Cacheable, 1)
 	go func() {

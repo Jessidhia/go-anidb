@@ -59,6 +59,11 @@ func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 	keys := []cacheKey{"aid", aid}
 	ch := make(chan *Anime, 1)
 
+	if aid < 1 {
+		ch <- nil
+		close(ch)
+	}
+
 	ic := make(chan Cacheable, 1)
 	go func() { ch <- (<-ic).(*Anime); close(ch) }()
 	if intentMap.Intent(ic, keys...) {

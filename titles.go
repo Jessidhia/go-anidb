@@ -17,6 +17,9 @@ func SearchAnime(name string) AID {
 
 // Searches for all anime that match the given anime name, case sensitive.
 func SearchAnimeAll(name string) titles.ResultSet {
+	if name == "" {
+		return nil
+	}
 	return titlesDB.FuzzySearch(name)
 }
 
@@ -33,5 +36,8 @@ func SearchAnimeFold(name string) AID {
 
 // Searches for all anime that match the given anime name, case folding.
 func SearchAnimeFoldAll(name string) titles.ResultSet {
+	if name == "" {
+		return nil
+	}
 	return titlesDB.FuzzySearchFold(name)
 }

@@ -48,6 +48,12 @@ func (adb *AniDB) EpisodeByID(eid EID) <-chan *Episode {
 	keys := []cacheKey{"eid", eid}
 	ch := make(chan *Episode, 1)
 
+	if eid < 1 {
+		ch <- nil
+		close(ch)
+		return ch
+	}
+
 	ic := make(chan Cacheable, 1)
 	go func() { ch <- (<-ic).(*Episode); close(ch) }()
 	if intentMap.Intent(ic, keys...) {
