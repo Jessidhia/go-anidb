@@ -166,21 +166,6 @@ func (udp *udpWrap) sendQueue() {
 	}
 }
 
-type errorReply struct {
-	udpapi.APIReply
-	err error
-}
-
-func (r *errorReply) Code() int {
-	return 999
-}
-func (r *errorReply) Text() string {
-	return r.err.Error()
-}
-func (r *errorReply) Error() error {
-	return r.err
-}
-
 func (udp *udpWrap) SendRecv(cmd string, params paramMap) <-chan udpapi.APIReply {
 	ch := make(chan udpapi.APIReply, 1)
 
