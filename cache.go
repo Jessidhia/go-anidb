@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"os"
 	"path"
 	"reflect"
@@ -15,8 +14,6 @@ import (
 	"sync"
 	"time"
 )
-
-var _ log.Logger
 
 type Cacheable interface {
 	// Updates the last modified time
@@ -142,9 +139,6 @@ func (c *cacheDir) DeleteAll(keys ...cacheKey) (err error) {
 }
 
 func (c *cacheDir) Get(v Cacheable, keys ...cacheKey) (err error) {
-	defer func() {
-		log.Println("Got entry", keys, "(error", err, ")")
-	}()
 
 	val := reflect.ValueOf(v)
 	if k := val.Kind(); k == reflect.Ptr || k == reflect.Interface {
@@ -213,9 +207,6 @@ func (c *cacheDir) Set(v Cacheable, keys ...cacheKey) (n int64, err error) {
 			return // no point in saving nil
 		}
 	}
-	defer func() {
-		log.Println("Set entry", keys, "(error", err, ")")
-	}()
 
 	// First we encode to memory -- we don't want to create/truncate a file and put bad data in it.
 	buf := bytes.Buffer{}
