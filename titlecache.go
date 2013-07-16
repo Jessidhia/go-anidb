@@ -1,8 +1,10 @@
 package anidb
 
 import (
+	"bytes"
 	"github.com/Kovensky/go-anidb/titles"
 	"io"
+	"log"
 	"net/http"
 	"time"
 )
@@ -47,21 +49,36 @@ func UpdateTitles() error {
 
 	c := &http.Client{Transport: &http.Transport{DisableCompression: true}}
 
+	log.Printf("HTTP>>> %s", titles.DataDumpURL)
+
 	resp, err := c.Get(titles.DataDumpURL)
 	if err != nil {
+		log.Printf("HTTP<<< %s", resp.Status)
 		return err
 	}
 	defer resp.Body.Close()
+
+	buf := bytes.Buffer{}
+	log.Printf("HTTP--- %s", resp.Status)
+
+	_, err = io.Copy(&buf, resp.Body)
+	if err != nil {
+		log.Printf("HTTP--- %v", err)
+		return err
+	}
 
 	fh, err := cache.Create("anime-titles.dat.gz")
 	if err != nil {
 		return err
 	}
 
-	_, err = io.Copy(fh, resp.Body)
+	_, err = io.Copy(fh, &buf)
 	if err != nil {
 		return err
 	}
 
+	defer func() {
+		log.Printf("HTTP<<< Titles version %s", titlesDB.UpdateTime)
+	}()
 	return RefreshTitles()
 }
