@@ -1,6 +1,7 @@
 package anidb
 
 import (
+	"fmt"
 	"github.com/Kovensky/go-anidb/misc"
 	"strconv"
 	"time"
@@ -118,7 +119,7 @@ func (a *Anime) Episode(ep *misc.Episode) *Episode {
 	case 1:
 		return list[0]
 	default:
-		panic("Single episode search returned more than one result")
+		panic(fmt.Sprintf("Single episode search returned more than one result (wanted %v, got %v)", ep, list))
 	}
 }
 
