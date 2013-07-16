@@ -91,7 +91,7 @@ func ParseEpisodeList(s string) (el EpisodeList) {
 		el[i] = ParseEpisodeRange(parts[i])
 	}
 
-	return
+	return el.Simplify()
 }
 
 // Returns a simplified version of the EpisodeList (removes nil ranges, merges mergeable ranges, sorts).
