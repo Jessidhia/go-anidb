@@ -113,7 +113,7 @@ func logReply(reply udpapi.APIReply) {
 }
 
 func (udp *udpWrap) sendQueue() {
-	initialWait := 6 * time.Second
+	initialWait := 5 * time.Second
 	wait := initialWait
 	for set := range udp.sendQueueCh {
 	Retry:
@@ -128,7 +128,7 @@ func (udp *udpWrap) sendQueue() {
 
 		if reply.Error() == udpapi.TimeoutError {
 			// retry
-			wait = (wait * 15) / 10
+			wait = wait * 2
 			if wait > time.Minute {
 				wait = time.Minute
 			}
