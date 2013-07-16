@@ -3,6 +3,8 @@ package anidb
 import (
 	"encoding/gob"
 	"github.com/Kovensky/go-anidb/udp"
+	"log"
+	"sync"
 	"time"
 )
 
@@ -46,8 +48,10 @@ type paramSet struct {
 type udpWrap struct {
 	*udpapi.AniDBUDP
 
+	sendLock    sync.Mutex
 	sendQueueCh chan paramSet
 
+	credLock    sync.Mutex
 	credentials *credentials
 	connected   bool
 }
@@ -100,6 +104,12 @@ func (udp *udpWrap) sendQueue() {
 	wait := initialWait
 	for set := range udp.sendQueueCh {
 	Retry:
+		if Banned() {
+			set.ch <- bannedReply
+			close(set.ch)
+			continue
+		}
+
 		reply := <-udp.AniDBUDP.SendRecv(set.cmd, udpapi.ParamMap(set.params))
 
 		if reply.Error() == udpapi.TimeoutError {
@@ -108,6 +118,7 @@ func (udp *udpWrap) sendQueue() {
 			if wait > time.Minute {
 				wait = time.Minute
 			}
+
 			time.Sleep(wait)
 			goto Retry
 		}
@@ -115,7 +126,7 @@ func (udp *udpWrap) sendQueue() {
 
 		switch reply.Code() {
 		case 403, 501, 506: // not logged in, or session expired
-			if err := udp.ReAuth(); err == nil {
+			if r := udp.ReAuth(); r.Error() == nil {
 				// retry
 				goto Retry
 			}
@@ -129,18 +140,39 @@ func (udp *udpWrap) sendQueue() {
 	}
 }
 
+type errorReply struct {
+	udpapi.APIReply
+	err error
+}
+
+func (r *errorReply) Code() int {
+	return 999
+}
+func (r *errorReply) Text() string {
+	return r.err.Error()
+}
+func (r *errorReply) Error() error {
+	return r.err
+}
+
 func (udp *udpWrap) SendRecv(cmd string, params paramMap) <-chan udpapi.APIReply {
 	ch := make(chan udpapi.APIReply, 1)
-	if udp.credentials == nil {
-		ch <- &noauthAPIReply{}
-		close(ch)
-		return ch
-	}
+
+	udp.sendLock.Lock()
+	defer udp.sendLock.Unlock()
 
 	if Banned() {
 		ch <- bannedReply
 		close(ch)
 		return ch
+	}
+
+	if !udp.connected {
+		if r := udp.ReAuth(); r.Error() != nil {
+			ch <- r
+			close(ch)
+			return ch
+		}
 	}
 
 	udp.sendQueueCh <- paramSet{

@@ -4,7 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/cipher"
 	"crypto/rand"
-	"errors"
+	"github.com/Kovensky/go-anidb/udp"
 	"io"
 	"runtime"
 )
@@ -83,23 +83,49 @@ func newCredentials(username, password, udpKey string) *credentials {
 	}
 }
 
-func (udp *udpWrap) ReAuth() error {
-	if c := udp.credentials; c != nil {
-		defer runtime.GC() // any better way to clean the plaintexts?
+func (udp *udpWrap) ReAuth() udpapi.APIReply {
+	if Banned() {
+		return bannedReply
+	}
 
-		udp.connected = true
-		return udp.Auth(
+	udp.credLock.Lock()
+	defer udp.credLock.Unlock()
+
+	if c := udp.credentials; c != nil {
+		r := udp.AniDBUDP.Auth(
 			decrypt(c.username),
 			decrypt(c.password),
 			decrypt(c.udpKey))
+		runtime.GC() // any better way to clean the plaintexts?
+
+		err := r.Error()
+
+		if err != nil {
+			switch r.Code() {
+			// 555 -- banned
+			// 601 -- server down, treat the same as a ban
+			case 555, 601:
+				setBanned()
+			case 500: // bad credentials
+				udp.credentials.shred()
+				udp.credentials = nil
+			case 503, 504: // client rejected
+				panic(err)
+			}
+		}
+		udp.connected = err == nil
+		return r
 	}
-	return errors.New("No credentials stored")
+	return &noauthAPIReply{}
 }
 
 // Saves the used credentials in the AniDB struct, to allow automatic
 // re-authentication when needed; they are (properly) encrypted with a key that's
 // uniquely generated every time the module is initialized.
 func (adb *AniDB) SetCredentials(username, password, udpKey string) {
+	adb.udp.credLock.Lock()
+	defer adb.udp.credLock.Unlock()
+
 	adb.udp.credentials.shred()
 	adb.udp.credentials = newCredentials(username, password, udpKey)
 }
@@ -110,17 +136,27 @@ func (adb *AniDB) SetCredentials(username, password, udpKey string) {
 func (adb *AniDB) Auth(username, password, udpKey string) (err error) {
 	defer runtime.GC() // any better way to clean the plaintexts?
 
-	if err = adb.udp.Auth(username, password, udpKey); err == nil {
-		adb.udp.connected = true
+	adb.udp.sendLock.Lock()
+	defer adb.udp.sendLock.Unlock()
+
+	if !Banned() {
 		adb.SetCredentials(username, password, udpKey)
 	}
-	return
+
+	// ReAuth clears the credentials if they're bad
+	return adb.udp.ReAuth().Error()
 }
 
 // Logs the user out and removes the credentials from the AniDB struct.
 func (adb *AniDB) Logout() error {
+	adb.udp.credLock.Lock()
+	defer adb.udp.credLock.Unlock()
+
 	adb.udp.credentials.shred()
 	adb.udp.credentials = nil
+
+	adb.udp.sendLock.Lock()
+	defer adb.udp.sendLock.Unlock()
 
 	if adb.udp.connected {
 		adb.udp.connected = false

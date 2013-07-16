@@ -13,20 +13,20 @@ import (
 // http://wiki.anidb.net/w/UDP_API_Definition#AUTH:_Authing_to_the_AnimeDB
 //
 // http://wiki.anidb.net/w/UDP_API_Definition#ENCRYPT:_Start_Encrypted_Session
-func (a *AniDBUDP) Auth(user, password, udpKey string) (err error) {
+func (a *AniDBUDP) Auth(user, password, udpKey string) (reply APIReply) {
 	if a.session != "" {
-		if err = (<-a.Uptime()).Error(); err == nil {
-			return nil
+		if reply = <-a.Uptime(); reply.Error() == nil {
+			return reply
 		}
 	}
 
 	a.session = ""
 	if udpKey != "" {
-		if err = a.encrypt(user, udpKey); err != nil {
-			return err
+		if reply = a.encrypt(user, udpKey); reply.Error() != nil {
+			return reply
 		}
 	}
-	r := <-a.SendRecv("AUTH", ParamMap{
+	reply = <-a.SendRecv("AUTH", ParamMap{
 		"user":      user,
 		"pass":      password,
 		"protover":  3,
@@ -36,12 +36,12 @@ func (a *AniDBUDP) Auth(user, password, udpKey string) (err error) {
 		"comp":      1,
 		"enc":       "UTF-8",
 	})
-	switch r.Code() {
+	switch reply.Code() {
 	case 200, 201:
-		f := strings.Fields(r.Text())
+		f := strings.Fields(reply.Text())
 		a.session = f[0]
 	}
-	return r.Error()
+	return reply
 }
 
 // Ends the API session. Blocks until we have confirmation.
@@ -53,10 +53,9 @@ func (a *AniDBUDP) Logout() (err error) {
 	return r.Error()
 }
 
-func (a *AniDBUDP) encrypt(user, udpKey string) (err error) {
-	if reply := <-a.SendRecv("ENCRYPT", ParamMap{"user": user, "type": 1}); reply.Error() != nil {
-		return reply.Error()
-	} else {
+func (a *AniDBUDP) encrypt(user, udpKey string) (reply APIReply) {
+	a.ecb = nil
+	if reply = <-a.SendRecv("ENCRYPT", ParamMap{"user": user, "type": 1}); reply.Error() == nil {
 		switch reply.Code() {
 		case 209:
 			salt := []byte(strings.Fields(reply.Text())[0])
@@ -64,6 +63,6 @@ func (a *AniDBUDP) encrypt(user, udpKey string) (err error) {
 			// Yes, AniDB works in ECB mode
 			a.ecb = newECBState(udpKey, salt)
 		}
-		return reply.Error()
 	}
+	return reply
 }
