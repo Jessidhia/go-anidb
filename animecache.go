@@ -132,7 +132,8 @@ func (adb *AniDB) AnimeByID(aid AID) <-chan *Anime {
 						cache.MarkInvalid(keys...)
 					}
 
-					if resp.anime.Error == "Anime not found" {
+					switch resp.anime.Error {
+					case "Anime not found", "aid Missing or Invalid":
 						// deleted AID?
 						cache.Delete(keys...)
 					}
