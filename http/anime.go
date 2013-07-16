@@ -68,8 +68,8 @@ func GetAnime(AID int) (a Anime, err error) {
 			case 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 15:
 				// documentation knows about these
 			default:
-				log.Printf("Anime %d (%s) has unknown resource type %d", a.ID, title, r.Type)
-				log.Printf("Type %d external entities: %#v", r.Type, r.ExternalEntity)
+				log.Printf("HTTP -- Anime %d (%s) has unknown resource type %d", a.ID, title, r.Type)
+				log.Printf("HTTP -- Type %d external entities: %#v", r.Type, r.ExternalEntity)
 			}
 		}
 
@@ -92,7 +92,6 @@ func doRequest(request string, reqMap reqMap) (*http.Response, error) {
 
 	u, _ := url.Parse(aniDBHTTPAPIBaseURL)
 	u.RawQuery = v.Encode()
-	log.Println(u.String())
 	return http.Get(u.String())
 }
 

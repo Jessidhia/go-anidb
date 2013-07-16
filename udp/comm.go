@@ -11,7 +11,6 @@ import (
 	"compress/zlib"
 	"fmt"
 	"io"
-	"log"
 	"net"
 	"sort"
 	"strings"
@@ -130,8 +129,6 @@ func (a *AniDBUDP) SendRecv(command string, args ParamMap) <-chan APIReply {
 
 			reply <- newErrorWrapper(TimeoutError)
 			close(reply)
-
-			log.Println("!!! Timeout")
 		case r := <-ch:
 			a.routerLock.Lock()
 			delete(a.tagRouter, tag)
@@ -184,7 +181,6 @@ func (a *AniDBUDP) send(command string, args ParamMap) chan bool {
 	if len(arg) > 0 {
 		str = strings.Join([]string{command, arg}, " ")
 	}
-	log.Println(">>>", str)
 
 	p := makePacket([]byte(str), a.ecb)
 
@@ -268,7 +264,6 @@ func (a *AniDBUDP) recvLoop() {
 
 				a.routerLock.RLock()
 				if ch, ok := a.tagRouter[r.Tag()]; ok {
-					log.Println("<<<", string(b))
 					ch <- r
 				} else {
 					c := r.Code()
@@ -295,7 +290,6 @@ func (a *AniDBUDP) recvLoop() {
 						// NOTIFYACK reply, ignore
 					} else {
 						// untagged error, broadcast to all
-						log.Println("<!<", string(b))
 						for _, ch := range a.tagRouter {
 							ch <- r
 						}
