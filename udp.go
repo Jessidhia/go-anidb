@@ -99,6 +99,19 @@ func (r *bannedAPIReply) Error() error {
 
 var bannedReply udpapi.APIReply = &bannedAPIReply{}
 
+func logRequest(set paramSet) {
+	switch set.cmd {
+	case "AUTH":
+		log.Printf("UDP>>> AUTH user=%s\n", set.params["user"])
+	default:
+		log.Printf("UDP>>> %s %s\n", set.cmd, udpapi.ParamMap(set.params).String())
+	}
+}
+
+func logReply(reply udpapi.APIReply) {
+	log.Printf("UDP<<< %d %s\n", reply.Code(), reply.Text())
+}
+
 func (udp *udpWrap) sendQueue() {
 	initialWait := 6 * time.Second
 	wait := initialWait
@@ -110,6 +123,7 @@ func (udp *udpWrap) sendQueue() {
 			continue
 		}
 
+		logRequest(set)
 		reply := <-udp.AniDBUDP.SendRecv(set.cmd, udpapi.ParamMap(set.params))
 
 		if reply.Error() == udpapi.TimeoutError {
@@ -118,10 +132,13 @@ func (udp *udpWrap) sendQueue() {
 			if wait > time.Minute {
 				wait = time.Minute
 			}
+			log.Printf("UDP--- Timeout; waiting %s before retry", wait)
 
 			time.Sleep(wait)
 			goto Retry
 		}
+		logReply(reply)
+
 		wait = initialWait
 
 		switch reply.Code() {
