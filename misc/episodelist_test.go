@@ -11,3 +11,28 @@ func ExampleEpisodeList_Simplify() {
 
 	// Output: 01-03,05,10-15,S1,S3-,C07-C10
 }
+
+func ExampleEpisodeList_Add() {
+	a := misc.ParseEpisodeList("1-3")
+	a.Add(misc.ParseEpisode("3.1"))
+	fmt.Println(a)
+
+	a.Add(misc.ParseEpisode("4.0"))
+	fmt.Println(a)
+
+	a.Add(misc.ParseEpisode("4"))
+	fmt.Println(a)
+
+	a.Add(misc.ParseEpisode("5.1"))
+	fmt.Println(a)
+
+	a.Add(misc.ParseEpisode("6"))
+	fmt.Println(a)
+
+	// Output:
+	// 1-3
+	// 1-4.0
+	// 1-4
+	// 1-4,5.1
+	// 1-4,5.1,6
+}

@@ -25,6 +25,19 @@ func RangesToList(ranges ...*EpisodeRange) EpisodeList {
 	return EpisodeList(ranges)
 }
 
+func ContainerToList(ec EpisodeContainer) EpisodeList {
+	switch v := ec.(type) {
+	case *Episode:
+		return EpisodeToList(v)
+	case *EpisodeRange:
+		return RangesToList(v)
+	case EpisodeList:
+		return v
+	default:
+		panic("unimplemented")
+	}
+}
+
 // Converts the EpisodeList into the AniDB API list format.
 func (el EpisodeList) String() string {
 	scales := map[EpisodeType]int{}
@@ -195,4 +208,17 @@ func (el EpisodeList) Less(i, j int) bool {
 
 func (el EpisodeList) Swap(i, j int) {
 	el[i], el[j] = el[j], el[i]
+}
+
+func (el *EpisodeList) Add(ec EpisodeContainer) {
+	*el = append(*el, ContainerToList(ec)...)
+	*el = el.Simplify()
+}
+
+func (el *EpisodeList) Sub(ep *Episode) {
+	el2 := make(EpisodeList, 0, len(*el))
+	for _, r := range *el {
+		el2 = append(el2, r.Split(ep)...)
+	}
+	*el = append(*el, el2.Simplify()...)
 }
