@@ -134,7 +134,7 @@ func (ep *Episode) FormatLog(max int) string {
 	return ep.Format(scale(max))
 }
 
-func (ep *Episode) Inc() {
+func (ep *Episode) IncPart() {
 	if ep.Parts > 0 && ep.Part == ep.Parts-1 {
 		ep.IncNumber()
 	} else {
@@ -148,7 +148,7 @@ func (ep *Episode) IncNumber() {
 	ep.Number++
 }
 
-func (ep *Episode) Dec() {
+func (ep *Episode) DecPart() {
 	if ep.Part > 0 {
 		ep.Part--
 	} else {

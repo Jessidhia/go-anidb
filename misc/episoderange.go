@@ -217,7 +217,7 @@ func (er *EpisodeRange) Split(ep *Episode) []*EpisodeRange {
 		return []*EpisodeRange{nil, nil}
 	case a.ContainsEpisodes(ep):
 		if ep.Part >= 0 {
-			a.Inc()
+			a.IncPart()
 		} else {
 			a.IncNumber()
 		}
@@ -233,7 +233,7 @@ func (er *EpisodeRange) Split(ep *Episode) []*EpisodeRange {
 		return []*EpisodeRange{nil, r.Simplify()}
 	case b.ContainsEpisodes(ep):
 		if ep.Part >= 0 {
-			b.Dec()
+			b.DecPart()
 		} else {
 			b.DecNumber()
 		}
