@@ -134,6 +134,34 @@ func (ep *Episode) FormatLog(max int) string {
 	return ep.Format(scale(max))
 }
 
+func (ep *Episode) Inc() {
+	if ep.Parts > 0 && ep.Part == ep.Parts-1 {
+		ep.IncNumber()
+	} else {
+		ep.Part++
+	}
+}
+
+func (ep *Episode) IncNumber() {
+	ep.Part = -1
+	ep.Parts = 0
+	ep.Number++
+}
+
+func (ep *Episode) Dec() {
+	if ep.Part > 0 {
+		ep.Part--
+	} else {
+		ep.DecNumber()
+	}
+}
+
+func (ep *Episode) DecNumber() {
+	ep.Part = -1
+	ep.Parts = 0
+	ep.Number--
+}
+
 // Parses a string in the usual AniDB API episode format and converts into
 // an Episode.
 func ParseEpisode(s string) *Episode {

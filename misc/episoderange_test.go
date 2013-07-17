@@ -50,3 +50,32 @@ func ExampleEpisodeRange_PartialMerge() {
 	// <nil>
 	// 1-2.3
 }
+
+func ExampleEpisodeRange_Split() {
+	a := misc.ParseEpisodeRange("1.0-1.3")
+	b := misc.ParseEpisode("1.2")
+	fmt.Println(a.Split(b))
+
+	b = misc.ParseEpisode("1")
+	fmt.Println(a.Split(b))
+
+	a = misc.ParseEpisodeRange("1.1-2")
+	fmt.Println(a.Split(b))
+
+	b = misc.ParseEpisode("2")
+	fmt.Println(a.Split(b))
+
+	a = misc.ParseEpisodeRange("1-10")
+	fmt.Println(a.Split(b))
+
+	b = misc.ParseEpisode("4")
+	fmt.Println(a.Split(b))
+
+	// Output:
+	// [1.0-1.1 1.3]
+	// [<nil> <nil>]
+	// [<nil> 2]
+	// [1.1 <nil>]
+	// [1 03-10]
+	// [1-3 05-10]
+}

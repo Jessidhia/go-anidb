@@ -144,6 +144,132 @@ func (a *EpisodeRange) Merge(b *EpisodeRange) (c *EpisodeRange) {
 	return
 }
 
+// Check if the given range is not nil, has a defined start
+// and, if it has an end, that the end ends after the start.
+func (er *EpisodeRange) Valid() bool {
+	switch {
+	case er == nil, er.Start == nil:
+		return false
+	case er.End == nil:
+		return true
+	case er.Start.Number < er.End.Number:
+		return true
+	case er.Start.Number > er.End.Number:
+		return false
+	case er.Start.Part <= er.End.Part:
+		return true
+	default:
+		return false
+	}
+}
+
+// Simplifies the Start/End ranges if one contains the other.
+// Sets the pointers to be identical if the range is modified.
+//
+// Modifies in-place, returns itself.
+func (er *EpisodeRange) Simplify() *EpisodeRange {
+	switch {
+	case er.Start.ContainsEpisodes(er.End):
+		er.End = er.Start
+	case er.End != nil && er.End.ContainsEpisodes(er.Start):
+		er.Start = er.End
+	}
+	return er
+}
+
+// Splits the range into one or two ranges, using the given
+// Episode as the split point. The Episode is not included in
+// the resulting ranges.
+func (er *EpisodeRange) Split(ep *Episode) []*EpisodeRange {
+	if !er.ContainsEpisodes(ep) { // implies same type
+		return []*EpisodeRange{er}
+	}
+	if !er.Valid() {
+		return []*EpisodeRange{nil, nil}
+	}
+
+	a := *er.Start
+
+	inf := er.End == nil
+	b := Episode{}
+	if !inf {
+		b = *er.End
+	}
+
+	end := &b
+	if inf {
+		end = nil
+	}
+
+	switch {
+	case a.ContainsEpisodes(ep) && b.ContainsEpisodes(ep):
+		return []*EpisodeRange{nil, nil}
+	case a.ContainsEpisodes(ep):
+		if ep.Part >= 0 {
+			a.Inc()
+		} else {
+			a.IncNumber()
+		}
+		if a.Number == b.Number && b.Parts > 0 {
+			a.Parts = b.Parts
+		}
+
+		r := &EpisodeRange{
+			Type:  er.Type,
+			Start: &a,
+			End:   end,
+		}
+		return []*EpisodeRange{nil, r.Simplify()}
+	case b.ContainsEpisodes(ep):
+		if ep.Part >= 0 {
+			b.Dec()
+		} else {
+			b.DecNumber()
+		}
+		if b.Number == a.Number {
+			if a.Parts > 0 {
+				b.Parts = a.Parts
+				b.Part = a.Parts - 1
+			} else if b.Part < 0 {
+				b.Part = a.Part
+			}
+		}
+		r := &EpisodeRange{
+			Type:  er.Type,
+			Start: &a,
+			End:   &b,
+		}
+		return []*EpisodeRange{r.Simplify(), nil}
+	default:
+		ra := &EpisodeRange{
+			Type:  er.Type,
+			Start: &a,
+			End:   ep,
+		}
+		rb := &EpisodeRange{
+			Type:  er.Type,
+			Start: ep,
+			End:   end,
+		}
+
+		ra = ra.Split(ep)[0]
+		rb = rb.Split(ep)[1]
+
+		if ra.Valid() {
+			ra.Simplify()
+		} else {
+			ra = nil
+		}
+		if rb.Valid() {
+			rb.Simplify()
+		} else {
+			rb = nil
+		}
+
+		return []*EpisodeRange{ra, rb}
+	}
+}
+
 // Returns true if both ranges are of the same type and
 // have identical start/end positions
 func (a *EpisodeRange) Equals(b *EpisodeRange) bool {
