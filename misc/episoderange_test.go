@@ -45,7 +45,7 @@ func ExampleEpisodeRange_PartialMerge() {
 	fmt.Println(a.Merge(b)) // 2.0-2.3 + 1
 
 	// Output:
-	// 2.1-3.0
+	// <nil>
 	// <nil>
 	// <nil>
 	// 1-2.3

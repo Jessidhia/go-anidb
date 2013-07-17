@@ -114,15 +114,21 @@ func (a *EpisodeRange) Merge(b *EpisodeRange) (c *EpisodeRange) {
 	if a.touches(b) {
 		c = &EpisodeRange{Type: a.Type}
 
-		if a.Start.Number == b.Start.Number {
-			if a.Start.Part <= b.Start.Part {
+		switch {
+		case a.Start.Number == b.Start.Number:
+			switch {
+			case a.Start.Part < 0:
 				c.Start = a.Start
-			} else {
+			case b.Start.Part < 0:
+				c.Start = b.Start
+			case a.Start.Part <= b.Start.Part:
+				c.Start = a.Start
+			default:
 				c.Start = b.Start
 			}
-		} else if a.Start.Number < b.Start.Number {
+		case a.Start.Number < b.Start.Number:
 			c.Start = a.Start
-		} else {
+		default:
 			c.Start = b.Start
 		}
 
@@ -130,9 +136,14 @@ func (a *EpisodeRange) Merge(b *EpisodeRange) (c *EpisodeRange) {
 		case a.End == nil || b.End == nil:
 			c.End = nil
 		case a.End.Number == b.End.Number:
-			if a.End.Part >= b.End.Part {
+			switch {
+			case a.End.Part < 0:
 				c.End = a.End
-			} else {
+			case b.End.Part < 0:
+				c.End = b.End
+			case a.End.Part >= b.End.Part:
+				c.End = a.End
+			default:
 				c.End = b.End
 			}
 		case a.End.Number > b.End.Number:
@@ -291,9 +302,8 @@ func (a *EpisodeRange) Equals(b *EpisodeRange) bool {
 	return false
 }
 
-// CORNER CASE: e.g. 1.3,2.0 (or 1.3,2) always touch,
-// even if there's an unlisted 1.4 between them; unless
-// the part count is known.
+// CORNER CASE: e.g. 1.3,2.0 (or 1.3,2) never touch,
+// unless it's known that 1.3 is the last part.
 func (a *EpisodeRange) touches(b *EpisodeRange) bool {
 	if a == nil || b == nil || a.Type != b.Type {
 		return false
@@ -388,8 +398,8 @@ func (a *EpisodeRange) touches(b *EpisodeRange) bool {
 			}
 		case a.End.Number == b.Start.Number-1 && b.Start.Part <= 0:
 			switch {
-			case b.End.Part == -1, b.End.Parts == 0,
-				b.End.Part == b.End.Parts:
+			case a.End.Part == -1, a.End.Part == a.End.Parts-1,
+				a.End.Part == b.Start.Parts:
 				// log.Printf("[ %s ]{ %s }", a.End, b.Start)
 				return true
 			}
@@ -409,7 +419,7 @@ func (a *EpisodeRange) touches(b *EpisodeRange) bool {
 			}
 		case b.End.Number == a.Start.Number-1 && a.Start.Part <= 0:
 			switch {
-			case b.End.Part == -1, b.End.Parts == 0,
+			case b.End.Part == -1, b.End.Part == b.End.Parts-1,
 				b.End.Part == b.End.Parts:
 				// log.Printf("{ %s }[ %s ]", b.End, a.Start)
 				return true
