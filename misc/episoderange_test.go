@@ -79,3 +79,17 @@ func ExampleEpisodeRange_Split() {
 	// [1 03-10]
 	// [1-3 05-10]
 }
+
+func ExampleEpisodeRange_Episodes() {
+	a := misc.ParseEpisodeRange("C1-C3.2")
+	for ep := range a.Episodes() {
+		fmt.Println(ep)
+	}
+
+	// Output:
+	// C1
+	// C2
+	// C3.0
+	// C3.1
+	// C3.2
+}

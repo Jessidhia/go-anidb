@@ -51,6 +51,72 @@ func (er *EpisodeRange) scale() int {
 	return s
 }
 
+func (er *EpisodeRange) Infinite() bool {
+	return er != nil && er.End == nil
+}
+
+// Returns a channel that can be used to iterate using for/range.
+//
+// If the EpisodeRange is infinite, then the channel is also infinite.
+// The caller is allowed to close the channel in such case.
+func (er *EpisodeRange) Episodes() chan Episode {
+	ch := make(chan Episode, 1)
+	if er == nil || er.Start == nil {
+		close(ch)
+		return ch
+	}
+
+	start := *er.Start
+	inf := er.Infinite()
+	end := Episode{}
+	if !inf {
+		end = *er.End
+	}
+
+	go func() {
+		abort := false
+
+		if inf {
+			// we allow the caller to close the channel on infinite lists
+			defer func() { recover(); abort = true }()
+		} else {
+			defer close(ch)
+		}
+
+		ep := start
+
+		switch {
+		case inf:
+			for ; !abort && ep.Parts > 0 && ep.Number == start.Number; ep.IncPart() {
+				ch <- ep
+			}
+			for ; !abort; ep.IncNumber() {
+				ch <- ep
+			}
+		case start.Part == -1 && end.Part == -1:
+			for ; ep.Number <= end.Number; ep.IncNumber() {
+				ch <- ep
+			}
+		case start.Parts > 0:
+			for ; ep.Number == start.Number; ep.IncPart() {
+				ch <- ep
+			}
+			fallthrough
+		default:
+			for ; ep.Number < end.Number; ep.IncNumber() {
+				ch <- ep
+			}
+			if end.Part >= 0 {
+				ep.Part = 0
+			}
+			for ; ep.Part <= end.Part; ep.IncPart() {
+				ch <- ep
+			}
+		}
+	}()
+	return ch
+}
+
 // If ec is an *Episode, returns true if the Episode is of the same type as the range
 // and has a Number >= Start.Number; if End is defined, then the episode's Number must
 // also be <= End.Number.
