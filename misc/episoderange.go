@@ -5,6 +5,11 @@ import (
 	"strings"
 )
 
+type canInfinite interface {
+	EpisodeContainer
+	Infinite() bool
+}
+
 // A range of episodes with a start and possibly without an end.
 type EpisodeRange struct {
 	Type  EpisodeType // Must be equal to both the Start and End types; if End is nil, must be equal to the Start type

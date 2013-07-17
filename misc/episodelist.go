@@ -255,10 +255,28 @@ func (el *EpisodeList) Add(ec EpisodeContainer) {
 	*el = el.Simplify()
 }
 
-func (el *EpisodeList) Sub(ep *Episode) {
-	el2 := make(EpisodeList, 0, len(*el))
-	for _, r := range *el {
-		el2 = append(el2, r.Split(ep)...)
+func (el *EpisodeList) Sub(ec EpisodeContainer) {
+	el2 := make(EpisodeList, 0, len(*el)*2)
+	switch e, ok := ec.(canInfinite); {
+	case ok:
+		if e.Infinite() {
+			eCh := e.Episodes()
+			ep := <-eCh
+			close(eCh)
+
+			for _, r := range *el {
+				el2 = append(el2, r.Split(&ep)[0])
+			}
+			break
+		}
+		fallthrough
+	default:
+		for ep := range ec.Episodes() {
+			for _, r := range *el {
+				el2 = append(el2, r.Split(&ep)...)
+			}
+			el2 = el2.Simplify()
+		}
 	}
 	*el = append(*el, el2.Simplify()...)
 }
