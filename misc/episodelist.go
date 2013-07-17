@@ -87,6 +87,46 @@ func (el EpisodeList) FormatLog(ec EpisodeCount) string {
 	return strings.Join(parts, ",")
 }
 
+func (el EpisodeList) Infinite() bool {
+	for i := range el {
+		if el[i].Infinite() {
+			return true
+		}
+	}
+	return false
+}
+
+// Returns a channel that can be used to iterate using for/range.
+//
+// If the EpisodeList is infinite, then the channel is also infinite.
+// The caller is allowed to close the channel in such case.
+//
+// NOTE: Not thread safe.
+func (el EpisodeList) Episodes() chan Episode {
+	ch := make(chan Episode, 1)
+
+	go func() {
+		abort := false
+
+		if el.Infinite() {
+			defer func() { recover(); abort = true }()
+		} else {
+			defer close(ch)
+		}
+
+		for _, er := range el {
+			for ep := range er.Episodes() {
+				ch <- ep
+
+				if abort {
+					return
+				}
+			}
+		}
+	}()
+	return ch
+}
+
 // Returns true if any of the contained EpisodeRanges contain the
 // given EpisodeContainer.
 func (el EpisodeList) ContainsEpisodes(ec EpisodeContainer) bool {

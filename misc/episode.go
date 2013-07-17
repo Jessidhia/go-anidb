@@ -10,6 +10,9 @@ import (
 type EpisodeContainer interface {
 	// Returns true if this EpisodeContainer is equivalent or a superset of the given EpisodeContainer
 	ContainsEpisodes(EpisodeContainer) bool
+	// Returns a channel meant for iterating with for/range.
+	// Sends all contained episodes in order.
+	Episodes() chan Episode
 }
 
 type Formatter interface {
@@ -93,6 +96,15 @@ func (ep *Episode) scale() int {
 		return 1
 	}
 	return scale(ep.Number)
+}
+
+func (ep *Episode) Episodes() chan Episode {
+	ch := make(chan Episode, 1)
+	if ep != nil {
+		ch <- *ep
+	}
+	close(ch)
+	return ch
 }
 
 // Returns true if ec is an Episode and is identical to this episode,
