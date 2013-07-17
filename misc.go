@@ -15,6 +15,8 @@ var (
 	GroupCacheDuration   = 4 * DefaultCacheDuration // They don't change that often.
 	FileCacheDuration    = 8 * DefaultCacheDuration // These change even less often.
 
+	UIDCacheDuration = 16 * DefaultCacheDuration // Can these even be changed?
+
 	// Used for anime that have already finished airing.
 	// It's unlikely that they get any important updates.
 	FinishedAnimeCacheDuration = 4 * AnimeCacheDuration
