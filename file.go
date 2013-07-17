@@ -39,6 +39,7 @@ type File struct {
 	AID AID
 	EID EID
 	GID GID
+	LID LIDMap
 
 	EpisodeNumber misc.EpisodeList
 
@@ -95,6 +96,33 @@ func (er RelatedEpisodes) UnmarshalJSON(b []byte) error {
 		}
 
 		er[EID(ik)] = v
+	}
+
+	return nil
+}
+
+type LIDMap map[UID]LID
+
+func (m LIDMap) MarshalJSON() ([]byte, error) {
+	generic := make(map[string]int, len(m))
+	for k, v := range m {
+		generic[strconv.Itoa(int(k))] = int(v)
+	}
+	return json.Marshal(generic)
+}
+
+func (m LIDMap) UnmarshalJSON(b []byte) error {
+	var generic map[string]int
+	if err := json.Unmarshal(b, &generic); err != nil {
+		return err
+	}
+	for k, v := range generic {
+		ik, err := strconv.ParseInt(k, 10, 32)
+		if err != nil {
+			return err
+		}
+
+		m[UID(ik)] = LID(v)
 	}
 
 	return nil

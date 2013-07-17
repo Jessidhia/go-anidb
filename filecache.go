@@ -104,7 +104,7 @@ func (adb *AniDB) FileByID(fid FID) <-chan *File {
 			})
 
 		if reply.Error() == nil {
-			f = adb.parseFileResponse(reply, false)
+			adb.parseFileResponse(&f, reply, false)
 
 			cacheFile(f)
 		} else if reply.Code() == 320 {
@@ -168,7 +168,7 @@ func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 
 		var f *File
 		if reply.Error() == nil {
-			f = adb.parseFileResponse(reply, false)
+			adb.parseFileResponse(&f, reply, false)
 
 			fid = f.FID
 
@@ -184,18 +184,18 @@ func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 	return ch
 }
 
-var fileFmask = "77da7fe8"
+var fileFmask = "7fda7fe8"
 var fileAmask = "00008000"
 
 const (
-	fileStateCRCOK = 1 << iota
-	fileStateCRCERR
-	fileStateV2
-	fileStateV3
-	fileStateV4
-	fileStateV5
-	fileStateUncensored
-	fileStateCensored
+	stateCRCOK = 1 << iota
+	stateCRCERR
+	stateV2
+	stateV3
+	stateV4
+	stateV5
+	stateUncensored
+	stateCensored
 )
 
 func sanitizeCodec(codec string) string {
@@ -212,12 +212,20 @@ func sanitizeCodec(codec string) string {
 	return codec
 }
 
-func (adb *AniDB) parseFileResponse(reply udpapi.APIReply, calledFromFIDsByGID bool) *File {
+func (adb *AniDB) parseFileResponse(f **File, reply udpapi.APIReply, calledFromFIDsByGID bool) bool {
 	if reply.Error() != nil {
-		return nil
+		return false
 	}
 	if reply.Truncated() {
 		panic("Truncated")
+	}
+
+	uidChan := make(chan UID, 1)
+	if adb.udp.credentials != nil {
+		go func() { uidChan <- <-adb.GetUserUID(decrypt(adb.udp.credentials.username)) }()
+	} else {
+		uidChan <- 0
+		close(uidChan)
 	}
 
 	parts := strings.Split(reply.Lines()[1], "|")
@@ -228,9 +236,9 @@ func (adb *AniDB) parseFileResponse(reply udpapi.APIReply, calledFromFIDsByGID b
 
 	partial := false
 
-	rels := strings.Split(parts[4], "'")
-	relList := make([]EID, 0, len(parts[4]))
-	related := make(RelatedEpisodes, len(parts[4]))
+	rels := strings.Split(parts[5], "'")
+	relList := make([]EID, 0, len(parts[5]))
+	related := make(RelatedEpisodes, len(parts[5]))
 	for _, rel := range rels {
 		r := strings.Split(rel, ",")
 		if len(r) < 2 {
@@ -247,11 +255,12 @@ func (adb *AniDB) parseFileResponse(reply udpapi.APIReply, calledFromFIDsByGID b
 		}
 	}
 
-	epno := misc.ParseEpisodeList(parts[23])
+	epno := misc.ParseEpisodeList(parts[24])
 	fid := FID(ints[0])
 	aid := AID(ints[1])
 	eid := EID(ints[2])
 	gid := GID(ints[3])
+	lid := LID(ints[4])
 
 	if !epno[0].Start.ContainsEpisodes(epno[0].End) || len(epno) > 1 || len(relList) > 0 {
 		// epno is broken -- we need to sanitize it
@@ -300,7 +309,7 @@ func (adb *AniDB) parseFileResponse(reply udpapi.APIReply, calledFromFIDsByGID b
 						fids = fids[1:]
 						// Only entry was API error
 						if len(fids) == 0 {
-							return nil
+							return false
 						}
 					}
 					sort.Sort(sort.IntSlice(fids))
@@ -332,21 +341,20 @@ func (adb *AniDB) parseFileResponse(reply udpapi.APIReply, calledFromFIDsByGID b
 	}
 
 	version := FileVersion(1)
-	switch i := ints[6]; {
-	case i&fileStateV5 != 0:
+	switch i := ints[7]; {
+	case i&stateV5 != 0:
 		version = 5
-	case i&fileStateV4 != 0:
+	case i&stateV4 != 0:
 		version = 4
-	case i&fileStateV3 != 0:
+	case i&stateV3 != 0:
 		version = 3
-	case i&fileStateV2 != 0:
+	case i&stateV2 != 0:
 		version = 2
 	}
 
-	// codecs (parts[13]), bitrates (ints[14]), langs (parts[19])
-	codecs := strings.Split(parts[13], "'")
-	bitrates := strings.Split(parts[14], "'")
-	alangs := strings.Split(parts[19], "'")
+	codecs := strings.Split(parts[14], "'")
+	bitrates := strings.Split(parts[15], "'")
+	alangs := strings.Split(parts[20], "'")
 	streams := make([]AudioStream, len(codecs))
 	for i := range streams {
 		br, _ := strconv.ParseInt(bitrates[i], 10, 32)
@@ -357,59 +365,71 @@ func (adb *AniDB) parseFileResponse(reply udpapi.APIReply, calledFromFIDsByGID b
 		}
 	}
 
-	sl := strings.Split(parts[20], "'")
+	sl := strings.Split(parts[21], "'")
 	slangs := make([]Language, len(sl))
 	for i := range sl {
 		slangs[i] = Language(sl[i])
 	}
 
-	depth := int(ints[11])
+	depth := int(ints[12])
 	if depth == 0 {
 		depth = 8
 	}
-	res := strings.Split(parts[17], "x")
+	res := strings.Split(parts[18], "x")
 	width, _ := strconv.ParseInt(res[0], 10, 32)
 	height, _ := strconv.ParseInt(res[1], 10, 32)
 	video := VideoInfo{
-		Bitrate:    int(ints[16]),
-		Codec:      sanitizeCodec(parts[15]),
+		Bitrate:    int(ints[17]),
+		Codec:      sanitizeCodec(parts[16]),
 		ColorDepth: depth,
 		Resolution: image.Rect(0, 0, int(width), int(height)),
 	}
 
-	return &File{
+	lidMap := LIDMap{}
+	if *f != nil {
+		lidMap = (*f).LID
+	}
+
+	uid := <-uidChan
+	if uid != 0 {
+		lidMap[uid] = lid
+	}
+
+	*f = &File{
 		FID: fid,
 
 		AID: aid,
 		EID: eid,
 		GID: gid,
+		LID: lidMap,
 
 		EpisodeNumber: epno,
 
 		RelatedEpisodes: related,
-		Deprecated:      ints[5] != 0,
+		Deprecated:      ints[6] != 0,
 
-		CRCMatch:   ints[6]&fileStateCRCOK != 0,
-		BadCRC:     ints[6]&fileStateCRCERR != 0,
+		CRCMatch:   ints[7]&stateCRCOK != 0,
+		BadCRC:     ints[7]&stateCRCERR != 0,
 		Version:    version,
-		Uncensored: ints[6]&fileStateUncensored != 0,
-		Censored:   ints[6]&fileStateCensored != 0,
+		Uncensored: ints[7]&stateUncensored != 0,
+		Censored:   ints[7]&stateCensored != 0,
 
 		Incomplete: video.Resolution.Empty(),
 
-		Filesize: ints[7],
-		Ed2kHash: parts[8],
-		SHA1Hash: parts[9],
-		CRC32:    parts[10],
+		Filesize: ints[8],
+		Ed2kHash: parts[9],
+		SHA1Hash: parts[10],
+		CRC32:    parts[11],
 
-		Source: FileSource(parts[12]),
+		Source: FileSource(parts[13]),
 
 		AudioStreams:      streams,
 		SubtitleLanguages: slangs,
 		VideoInfo:         video,
-		FileExtension:     parts[18],
+		FileExtension:     parts[19],
 
-		Length:  time.Duration(ints[21]) * time.Second,
-		AirDate: time.Unix(ints[22], 0),
+		Length:  time.Duration(ints[22]) * time.Second,
+		AirDate: time.Unix(ints[23], 0),
 	}
+	return true
 }

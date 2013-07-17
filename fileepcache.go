@@ -108,14 +108,17 @@ func (adb *AniDB) FIDsByGID(ep *Episode, gid GID) <-chan FID {
 
 		switch reply.Code() {
 		case 220:
-			f := adb.parseFileResponse(reply, true)
+			var f *File
+			if adb.parseFileResponse(&f, reply, true) {
+				fids = []FID{f.FID}
+				CacheSet(&fids, key...)
 
-			fids = []FID{f.FID}
-			CacheSet(&fids, key...)
+				cacheFile(f)
 
-			cacheFile(f)
-
-			is.NotifyClose(f.FID)
+				is.NotifyClose(f.FID)
+			} else {
+				is.NotifyClose(FID(0))
+			}
 			return
 		case 322:
 			parts := strings.Split(reply.Lines()[1], "|")
