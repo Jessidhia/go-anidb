@@ -86,7 +86,7 @@ func scale(i int) int {
 }
 
 // Converts the Episode into AniDB API episode format.
-func (ep *Episode) String() string {
+func (ep Episode) String() string {
 	return ep.Format(1)
 }
 
@@ -129,7 +129,7 @@ func (ep *Episode) ContainsEpisodes(ec EpisodeContainer) bool {
 	return false
 }
 
-func (ep *Episode) Format(width int) string {
+func (ep Episode) Format(width int) string {
 	if ep.Part < 0 { // whole episode
 		return fmt.Sprintf("%s%0"+strconv.Itoa(width)+"d", ep.Type, ep.Number)
 	}
