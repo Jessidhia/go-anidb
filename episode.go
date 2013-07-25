@@ -21,3 +21,7 @@ type Episode struct {
 
 	Cached time.Time // When the data was retrieved from the server
 }
+
+func (ep *Episode) Anime() *Anime {
+	return ep.AID.Anime()
+}

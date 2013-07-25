@@ -53,3 +53,19 @@ type MyListEntry struct {
 
 	Cached time.Time
 }
+
+func (e *MyListEntry) File() *File {
+	return e.FID.File()
+}
+
+func (e *MyListEntry) Episode() *Episode {
+	return e.EID.Episode()
+}
+
+func (e *MyListEntry) Anime() *Anime {
+	return e.AID.Anime()
+}
+
+func (e *MyListEntry) Group() *Group {
+	return e.GID.Group()
+}

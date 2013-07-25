@@ -74,6 +74,22 @@ type File struct {
 	Cached time.Time
 }
 
+func (f *File) Anime() *Anime {
+	return f.AID.Anime()
+}
+
+func (f *File) Episode() *Episode {
+	return f.EID.Episode()
+}
+
+func (f *File) Group() *Group {
+	return f.GID.Group()
+}
+
+func (f *File) MyList() {
+	_ = f.LID[0]
+}
+
 type RelatedEpisodes map[EID]float32
 
 func (er RelatedEpisodes) MarshalJSON() ([]byte, error) {
