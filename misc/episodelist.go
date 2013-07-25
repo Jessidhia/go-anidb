@@ -1,6 +1,7 @@
 package misc
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -279,4 +280,25 @@ func (el *EpisodeList) Sub(ec EpisodeContainer) {
 		}
 	}
 	*el = append(*el, el2.Simplify()...)
+}
+
+// Equivalent to marshaling el.String()
+func (el EpisodeList) MarshalJSON() ([]byte, error) {
+	return json.Marshal(el.String())
+}
+
+// NOTE: Since the String() representation doesn't include them,
+// it's not exactly reversible if the user has set .Parts in any
+// of the contained episodes.
+func (el EpisodeList) UnmarshalJSON(b []byte) error {
+	var v string
+	if err := json.Unmarshal(b, &v); err != nil {
+		return err
+	}
+
+	l := ParseEpisodeList(v)
+	for k := range l {
+		el[k] = l[k]
+	}
+	return nil
 }
