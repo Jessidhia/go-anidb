@@ -212,6 +212,8 @@ func sanitizeCodec(codec string) string {
 	return codec
 }
 
+var opedRE = regexp.MustCompile(`\A(Opening|Ending)(?: (\d+))?\z`)
+
 func (adb *AniDB) parseFileResponse(f **File, reply udpapi.APIReply, calledFromFIDsByGID bool) bool {
 	if reply.Error() != nil {
 		return false
@@ -340,6 +342,34 @@ func (adb *AniDB) parseFileResponse(f **File, reply udpapi.APIReply, calledFromF
 		}
 	}
 
+	epstr := epno.String()
+	if len(epno) == 1 && epno[0].Type == misc.EpisodeTypeCredits && epno[0].Len() == 1 {
+		typ := ""
+		n := 0
+
+		if ep := <-adb.EpisodeByID(eid); ep == nil {
+		} else if m := opedRE.FindStringSubmatch(ep.Titles["en"]); len(m) > 2 {
+			num, err := strconv.ParseInt(m[2], 10, 32)
+			if err == nil {
+				n = int(num)
+			}
+
+			typ = m[1]
+		}
+
+		gobi := fmt.Sprintf("%d", n)
+		if n == 0 {
+			gobi = ""
+		}
+
+		switch typ {
+		case "Opening":
+			epstr = "OP" + gobi
+		case "Ending":
+			epstr = "ED" + gobi
+		}
+	}
+
 	version := FileVersion(1)
 	switch i := ints[7]; {
 	case i&stateV5 != 0:
@@ -403,6 +433,7 @@ func (adb *AniDB) parseFileResponse(f **File, reply udpapi.APIReply, calledFromF
 		GID: gid,
 		LID: lidMap,
 
+		EpisodeString: epstr,
 		EpisodeNumber: epno,
 
 		RelatedEpisodes: related,

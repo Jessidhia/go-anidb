@@ -41,6 +41,7 @@ type File struct {
 	GID GID
 	LID LIDMap
 
+	EpisodeString string
 	EpisodeNumber misc.EpisodeList
 
 	Incomplete bool
