@@ -60,13 +60,33 @@ func (er *EpisodeRange) Infinite() bool {
 	return er != nil && er.End == nil
 }
 
+// Returns the number of episodes that Episodes() would return.
+//
+// Returns -1 for infinite ranges.
+func (er *EpisodeRange) Len() int {
+	c := 0
+	switch {
+	case er.Infinite():
+		c = -1
+	case er.Valid():
+		if er.Start.Parts > 0 {
+			c += er.Start.Parts - er.Start.Part
+		}
+		c += 1 + er.End.Number - er.Start.Number
+		if er.End.Part > 0 {
+			c += er.End.Part
+		}
+	}
+	return c
+}
+
 // Returns a channel that can be used to iterate using for/range.
 //
 // If the EpisodeRange is infinite, then the channel is also infinite.
 // The caller is allowed to close the channel in such case.
 func (er *EpisodeRange) Episodes() chan Episode {
 	ch := make(chan Episode, 1)
-	if er == nil || er.Start == nil {
+	if !er.Valid() {
 		close(ch)
 		return ch
 	}
@@ -136,12 +156,8 @@ func (er *EpisodeRange) Episodes() chan Episode {
 //
 // Returns false otherwise.
 func (er *EpisodeRange) ContainsEpisodes(ec EpisodeContainer) bool {
-	if er == nil {
+	if !er.Valid() {
 		return false
-	}
-	if er.Start == nil || er.Start.Type != er.Type ||
-		(er.End != nil && er.End.Type != er.Type) {
-		panic("Invalid EpisodeRange used")
 	}
 
 	switch e := ec.(type) {
@@ -263,11 +279,11 @@ func (er *EpisodeRange) Simplify() *EpisodeRange {
 // Episode as the split point. The Episode is not included in
 // the resulting ranges.
 func (er *EpisodeRange) Split(ep *Episode) []*EpisodeRange {
-	if !er.ContainsEpisodes(ep) { // implies same type
-		return []*EpisodeRange{er}
-	}
 	if !er.Valid() {
 		return []*EpisodeRange{nil, nil}
+	}
+	if !er.ContainsEpisodes(ep) { // implies same type
+		return []*EpisodeRange{er}
 	}
 
 	a := *er.Start
