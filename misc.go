@@ -15,6 +15,11 @@ var (
 	GroupCacheDuration   = 4 * DefaultCacheDuration // They don't change that often.
 	FileCacheDuration    = 8 * DefaultCacheDuration // These change even less often.
 
+	MyListCacheDuration        = 12 * time.Hour           // When the file isn't watched
+	MyListWatchedCacheDuration = 2 * DefaultCacheDuration // When the file is watched
+
+	LIDCacheDuration = 4 * DefaultCacheDuration
+
 	UIDCacheDuration = 16 * DefaultCacheDuration // Can these even be changed?
 
 	// Used for anime that have already finished airing.
