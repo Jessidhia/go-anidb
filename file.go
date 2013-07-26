@@ -87,8 +87,11 @@ func (f *File) Group() *Group {
 	return f.GID.Group()
 }
 
-func (f *File) MyList() {
-	_ = f.LID[0]
+func (f *File) UserMyList(user *User) *MyListEntry {
+	if f != nil && user != nil && f.LID[user.UID] > 0 {
+		return f.LID[user.UID].MyListEntry()
+	}
+	return nil
 }
 
 type RelatedEpisodes map[EID]float32

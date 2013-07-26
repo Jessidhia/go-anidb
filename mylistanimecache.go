@@ -30,6 +30,36 @@ func (uid UID) MyListAnime(aid AID) *MyListAnime {
 	return nil
 }
 
+func (u *User) MyListAnime(aid AID) *MyListAnime {
+	if u != nil {
+		return u.UID.MyListAnime(aid)
+	}
+	return nil
+}
+
+func (a *Anime) MyList(adb *AniDB) <-chan *MyListAnime {
+	ch := make(chan *MyListAnime, 1)
+
+	if a == nil {
+		ch <- nil
+		close(ch)
+		return ch
+	}
+
+	go func() {
+		user := <-adb.GetCurrentUser()
+		if user == nil || user.UID < 1 {
+			ch <- nil
+			close(ch)
+			return
+		}
+
+		ch <- <-adb.MyListAnime(a.AID)
+		close(ch)
+	}()
+	return ch
+}
+
 func (adb *AniDB) MyListAnime(aid AID) <-chan *MyListAnime {
 	ch := make(chan *MyListAnime, 1)
 

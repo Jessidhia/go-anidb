@@ -26,6 +26,16 @@ func (e *MyListEntry) IsStale() bool {
 
 var _ cacheable = &MyListEntry{}
 
+func (uid UID) MyList(fid FID) *MyListEntry {
+	if f := fid.File(); f == nil {
+		return nil
+	} else if lid := f.LID[uid]; lid < 1 {
+		return nil
+	} else {
+		return f.LID[uid].MyListEntry()
+	}
+}
+
 func (lid LID) MyListEntry() *MyListEntry {
 	var e MyListEntry
 	if CacheGet(&e, "lid", lid) == nil {
