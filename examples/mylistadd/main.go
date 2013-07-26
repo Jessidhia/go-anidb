@@ -100,6 +100,8 @@ func main() {
 		}
 	}
 
+	fmt.Println("Waiting for API...")
+
 	count := 0
 	for ok := range done {
 		if ok {
