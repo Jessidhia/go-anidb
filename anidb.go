@@ -41,8 +41,13 @@ func (adb *AniDB) User() *User {
 		if adb.udp.user != nil {
 			return adb.udp.user
 		} else if adb.udp.credentials != nil {
-			// see if we can get it from the cache
+			// see if we can get it from the cache (we don't care if it's stale)
 			adb.udp.user = UserByName(decrypt(adb.udp.credentials.username))
+			if adb.udp.user != nil {
+				return adb.udp.user
+			}
+			// we have to go through the slow path
+			adb.udp.user = <-adb.GetUserByName(decrypt(adb.udp.credentials.username))
 			return adb.udp.user
 		}
 	}
