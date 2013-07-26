@@ -161,7 +161,8 @@ func (adb *AniDB) MyListByFID(fid FID) <-chan *MyListEntry {
 }
 
 func (adb *AniDB) parseMylistReply(reply udpapi.APIReply) *MyListEntry {
-	if reply.Error() != nil {
+	// 221: MYLIST ok, 310: MYLISTADD conflict (same return format as 221)
+	if reply.Code() != 221 && reply.Code() != 310 {
 		return nil
 	}
 
@@ -204,7 +205,8 @@ func (adb *AniDB) parseMylistReply(reply udpapi.APIReply) *MyListEntry {
 	if user != nil {
 		if f := e.FID.File(); f != nil {
 			f.LID[user.UID] = e.LID
-			cacheFile(f)
+			Cache.Set(f, "fid", f.FID)
+			Cache.Chtime(f.Cached, "fid", f.FID)
 
 			now := time.Now()
 			mla := <-adb.MyListAnime(f.AID)
