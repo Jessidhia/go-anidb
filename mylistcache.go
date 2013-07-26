@@ -247,7 +247,7 @@ func (adb *AniDB) parseMylistReply(reply udpapi.APIReply) *MyListEntry {
 				if mla.Cached.IsZero() {
 					// as attractive as such an ancient mtime would be,
 					// few filesystems can represent it; just make it old enough
-					mla.Cached = time.Unix(0, 0),
+					mla.Cached = time.Unix(0, 0)
 				}
 
 				Cache.Set(mla, key...)
