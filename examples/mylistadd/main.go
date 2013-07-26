@@ -92,8 +92,18 @@ func main() {
 		if ed2k != "" {
 			go func() {
 				f := <-adb.FileByEd2kSize(ed2k, size)
+				e := f.UserMyList(adb.User())
+
 				state := anidb.MyListStateHDD
-				done <- <-adb.MyListAdd(f, &anidb.MyListSet{State: &state}) != 0
+				if e != nil {
+					if e.MyListState == state {
+						done <- false
+					} else {
+						done <- <-adb.MyListEdit(f, &anidb.MyListSet{State: &state})
+					}
+				} else {
+					done <- <-adb.MyListAdd(f, &anidb.MyListSet{State: &state}) != 0
+				}
 			}()
 		} else {
 			go func() { done <- false }()
