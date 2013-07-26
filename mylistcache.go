@@ -38,7 +38,7 @@ func (uid UID) MyList(fid FID) *MyListEntry {
 
 func (lid LID) MyListEntry() *MyListEntry {
 	var e MyListEntry
-	if CacheGet(&e, "lid", lid) == nil {
+	if CacheGet(&e, "mylist", lid) == nil {
 		return &e
 	}
 	return nil
