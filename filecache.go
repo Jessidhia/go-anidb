@@ -30,6 +30,7 @@ func (f *File) IsStale() bool {
 }
 
 func cacheFile(f *File) {
+	CacheSet(f.AID, "aid", "by-eid", f.EID)
 	CacheSet(f.FID, "fid", "by-ed2k", f.Ed2kHash, f.Filesize)
 	CacheSet(f, "fid", f.FID)
 }
