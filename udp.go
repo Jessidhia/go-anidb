@@ -45,6 +45,8 @@ type udpWrap struct {
 	credLock    sync.Mutex
 	credentials *credentials
 	connected   bool
+
+	user *User
 }
 
 func newUDPWrap() *udpWrap {

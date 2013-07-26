@@ -11,6 +11,14 @@ import (
 
 type UID int
 
+func (uid UID) User() *User {
+	var u User
+	if CacheGet(&u, "user", uid) == nil {
+		return &u
+	}
+	return nil
+}
+
 func (adb *AniDB) GetCurrentUser() <-chan *User {
 	ch := make(chan *User, 1)
 

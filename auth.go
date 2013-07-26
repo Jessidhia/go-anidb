@@ -97,7 +97,6 @@ func (udp *udpWrap) ReAuth() udpapi.APIReply {
 			decrypt(c.username),
 			decrypt(c.password),
 			decrypt(c.udpKey))
-		runtime.GC() // any better way to clean the plaintexts?
 		logReply(r)
 
 		err := r.Error()
@@ -116,6 +115,23 @@ func (udp *udpWrap) ReAuth() udpapi.APIReply {
 			}
 		}
 		udp.connected = err == nil
+
+		if udp.connected {
+			ch := make(chan udpapi.APIReply, 1)
+			udp.sendQueueCh <- paramSet{
+				cmd:    "USER",
+				params: paramMap{"user": decrypt(c.username)},
+				ch:     ch,
+			}
+			reply := <-ch
+
+			if reply != nil {
+				uid, _ := parseUserReply(reply)
+				udp.user = uid.User()
+			}
+		}
+
+		runtime.GC()
 		return r
 	}
 	return &noauthAPIReply{}
@@ -159,6 +175,8 @@ func (adb *AniDB) Logout() error {
 
 	adb.udp.sendLock.Lock()
 	defer adb.udp.sendLock.Unlock()
+
+	adb.udp.user = nil
 
 	if adb.udp.connected {
 		adb.udp.connected = false

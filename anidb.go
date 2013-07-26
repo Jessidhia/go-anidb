@@ -30,3 +30,10 @@ func NewAniDB() *AniDB {
 		udp:     newUDPWrap(),
 	}
 }
+
+func (adb *AniDB) User() *User {
+	if adb != nil && adb.udp != nil {
+		return adb.udp.user
+	}
+	return nil
+}
