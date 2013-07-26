@@ -33,7 +33,13 @@ func NewAniDB() *AniDB {
 
 func (adb *AniDB) User() *User {
 	if adb != nil && adb.udp != nil {
-		return adb.udp.user
+		if adb.udp.user != nil {
+			return adb.udp.user
+		} else if adb.udp.credentials != nil {
+			// see if we can get it from the cache
+			adb.udp.user = UserByName(decrypt(adb.udp.credentials.username))
+			return adb.udp.user
+		}
 	}
 	return nil
 }

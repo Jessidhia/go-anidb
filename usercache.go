@@ -19,6 +19,14 @@ func (uid UID) User() *User {
 	return nil
 }
 
+func UserByName(name string) *User {
+	var uid UID
+	if CacheGet(&uid, "user", "by-name", name) == nil {
+		return uid.User()
+	}
+	return nil
+}
+
 func (adb *AniDB) GetCurrentUser() <-chan *User {
 	ch := make(chan *User, 1)
 

@@ -117,6 +117,7 @@ func (udp *udpWrap) ReAuth() udpapi.APIReply {
 		udp.connected = err == nil
 
 		if udp.connected {
+			// We can't use SendRecv here as it would deadlock
 			ch := make(chan udpapi.APIReply, 1)
 			udp.sendQueueCh <- paramSet{
 				cmd:    "USER",
