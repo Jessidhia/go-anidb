@@ -86,13 +86,29 @@ func (set *MyListSet) update(uid UID, f *File, lid LID) {
 	Cache.Set(mla, "mylist-anime", uid, f.AID)
 	Cache.Chtime(mla.Cached, "mylist-anime", uid, f.AID)
 
+	e := lid.MyListEntry()
 	if set == nil ||
 		(set.ViewDate == nil && set.Watched == nil && set.State == nil &&
 			set.Source == nil && set.Storage == nil && set.Other == nil) {
 		return
 	}
+	if e == nil {
+		now := time.Now()
+		e = &MyListEntry{
+			LID: lid,
 
-	e := lid.MyListEntry()
+			AID: f.AID,
+			EID: f.EID,
+			FID: f.FID,
+			GID: f.GID,
+
+			DateAdded: now,
+
+			// make sure it's expired
+			Cached: time.Unix(0, 0),
+		}
+	}
+
 	if set.ViewDate != nil {
 		e.DateWatched = *set.ViewDate
 	} else if set.Watched != nil {
