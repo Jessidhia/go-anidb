@@ -67,22 +67,25 @@ func (set *MyListSet) update(uid UID, f *File, lid LID) {
 	eg.Add(f.EpisodeNumber)
 	mla.EpisodesPerGroup[f.GID] = eg
 
-	if set.State != nil {
-		es := mla.EpisodesWithState[*set.State]
-		es.Add(f.EpisodeNumber)
-		mla.EpisodesWithState[*set.State] = es
-	}
+	if set != nil {
+		if set.State != nil {
+			es := mla.EpisodesWithState[*set.State]
+			es.Add(f.EpisodeNumber)
+			mla.EpisodesWithState[*set.State] = es
+		}
 
-	if set.Watched != nil && *set.Watched ||
-		set.ViewDate != nil && !set.ViewDate.IsZero() {
-		mla.WatchedEpisodes.Add(f.EpisodeNumber)
+		if set.Watched != nil && *set.Watched ||
+			set.ViewDate != nil && !set.ViewDate.IsZero() {
+			mla.WatchedEpisodes.Add(f.EpisodeNumber)
+		}
 	}
 
 	Cache.Set(mla, "mylist-anime", uid, f.AID)
 	Cache.Chtime(mla.Cached, "mylist-anime", uid, f.AID)
 
-	if set.ViewDate == nil && set.Watched == nil && set.State == nil &&
-		set.Source == nil && set.Storage == nil && set.Other == nil {
+	if set == nil ||
+		(set.ViewDate == nil && set.Watched == nil && set.State == nil &&
+			set.Source == nil && set.Storage == nil && set.Other == nil) {
 		return
 	}
 
