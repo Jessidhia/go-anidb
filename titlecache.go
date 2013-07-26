@@ -34,6 +34,11 @@ func TitlesUpToDate() (ok bool) {
 	return time.Now().Sub(titlesDB.UpdateTime) < 24*time.Hour
 }
 
+// Returns the number of anime in the titles database
+func AnimeCount() int {
+	return len(titlesDB.AnimeMap)
+}
+
 // Downloads a new anime-titles database if the database is outdated.
 //
 // Saves the database as anime-titles.dat.gz in the cache dir.
