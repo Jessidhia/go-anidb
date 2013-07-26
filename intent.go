@@ -94,7 +94,9 @@ func (m *intentMapStruct) _free(is *intentStruct, keys ...fscache.CacheKey) {
 	// deletes the key before unlocking, Intent needs to recheck key status
 	delete(m.m, intentKey(keys...))
 	// better than unlocking then deleting -- could delete a "brand new" entry
-	is.Unlock()
+	if is != nil {
+		is.Unlock()
+	}
 }
 
 // Notifies and closes all channels that are listening for the specified keys;
@@ -108,7 +110,9 @@ func (m *intentMapStruct) NotifyClose(v notification, keys ...fscache.CacheKey) 
 	is := m._lockIntent(keys...)
 	defer m._free(is, keys...)
 
-	is.NotifyClose(v)
+	if is != nil {
+		is.NotifyClose(v)
+	}
 }
 
 // Closes all channels that are listening for the specified keys
@@ -120,7 +124,9 @@ func (m *intentMapStruct) Close(keys ...fscache.CacheKey) {
 	is := m._lockIntent(keys...)
 	defer m._free(is, keys...)
 
-	is.Close()
+	if is != nil {
+		is.Close()
+	}
 }
 
 // Notifies all channels that are listening for the specified keys,
@@ -130,22 +136,28 @@ func (m *intentMapStruct) Notify(v notification, keys ...fscache.CacheKey) {
 	defer m.Unlock()
 
 	is := m._lockIntent(keys...)
-	defer is.Unlock()
+	if is != nil {
+		defer is.Unlock()
 
-	is.Notify(v)
+		is.Notify(v)
+	}
 }
 
 // NOTE: does not lock the stuct
 func (s *intentStruct) Notify(v notification) {
 	for _, ch := range s.chs {
-		ch <- v
+		if ch != nil {
+			ch <- v
+		}
 	}
 }
 
 // NOTE: does not lock the struct
 func (s *intentStruct) Close() {
 	for _, ch := range s.chs {
-		close(ch)
+		if ch != nil {
+			close(ch)
+		}
 	}
 	s.chs = nil
 }
@@ -153,8 +165,10 @@ func (s *intentStruct) Close() {
 // NOTE: does not lock the struct
 func (s *intentStruct) NotifyClose(v notification) {
 	for _, ch := range s.chs {
-		ch <- v
-		close(ch)
+		if ch != nil {
+			ch <- v
+			close(ch)
+		}
 	}
 	s.chs = nil
 }

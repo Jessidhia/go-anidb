@@ -205,12 +205,51 @@ func (adb *AniDB) parseMylistReply(reply udpapi.APIReply) *MyListEntry {
 		if f := e.FID.File(); f != nil {
 			f.LID[user.UID] = e.LID
 			cacheFile(f)
+
+			now := time.Now()
+			mla := <-adb.MyListAnime(f.AID)
+
+			key := []fscache.CacheKey{"mylist-anime", user.UID, f.AID}
+
+			intentMap.Intent(nil, key...)
+
+			if mla == nil {
+				mla = &MyListAnime{}
+			}
+
+			if mla.Cached.Before(now) {
+				el := mla.EpisodesWithState[e.MyListState]
+				el.Add(f.EpisodeNumber)
+				mla.EpisodesWithState[e.MyListState] = el
+
+				if e.DateWatched.IsZero() {
+					mla.WatchedEpisodes.Sub(f.EpisodeNumber)
+				} else {
+					mla.WatchedEpisodes.Add(f.EpisodeNumber)
+				}
+
+				eg := mla.EpisodesPerGroup[f.GID]
+				eg.Add(f.EpisodeNumber)
+				mla.EpisodesPerGroup[f.GID] = eg
+
+				if mla.Cached.IsZero() {
+					// as attractive as such an ancient mtime would be,
+					// few filesystems can represent it; just make it old enough
+					mla.Cached = now.Add(-2 * MyListCacheDuration)
+				}
+
+				Cache.Set(mla, key...)
+				Cache.Chtime(mla.Cached, key...)
+			}
+
+			// this unfortunately races if Intent returns true:
+			// only the first NotifyClose call actually notifies
+			go intentMap.NotifyClose(mla, key...)
 		}
 
 		CacheSet(e, "mylist", "by-fid", e.FID, user.UID)
 	}
 
-	// TODO: Add mylist info to Anime, also update there
 	CacheSet(e, "mylist", e.LID)
 
 	return e

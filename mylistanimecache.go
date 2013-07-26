@@ -48,7 +48,7 @@ func (adb *AniDB) MyListAnime(aid AID) <-chan *MyListAnime {
 		}
 		key := []fscache.CacheKey{"mylist-anime", user.UID, aid}
 
-		ic := make(chan notification, 1)
+		ic := make(chan notification, 2)
 		go func() { ch <- (<-ic).(*MyListAnime); close(ch) }()
 		if intentMap.Intent(ic, key...) {
 			return
