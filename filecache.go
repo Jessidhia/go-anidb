@@ -152,7 +152,7 @@ func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
 	fid := FID(0)
 
 	switch ts, err := Cache.Get(&fid, key...); {
-	case err != nil && time.Now().Sub(ts) < FileCacheDuration:
+	case err == nil && time.Now().Sub(ts) < FileCacheDuration:
 		intentMap.NotifyClose(fid, key...)
 		return ch
 	}
