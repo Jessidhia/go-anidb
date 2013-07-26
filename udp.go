@@ -181,6 +181,10 @@ func (udp *udpWrap) SendRecv(cmd string, params paramMap) <-chan udpapi.APIReply
 		}
 	}
 
+	if params == nil {
+		params = paramMap{}
+	}
+
 	udp.sendQueueCh <- paramSet{
 		cmd:    cmd,
 		params: params,
