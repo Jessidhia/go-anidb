@@ -117,18 +117,22 @@ func (udp *udpWrap) ReAuth() udpapi.APIReply {
 		udp.connected = err == nil
 
 		if udp.connected {
-			// We can't use SendRecv here as it would deadlock
-			ch := make(chan udpapi.APIReply, 1)
-			udp.sendQueueCh <- paramSet{
-				cmd:    "USER",
-				params: paramMap{"user": decrypt(c.username)},
-				ch:     ch,
-			}
-			reply := <-ch
+			if user := UserByName(decrypt(c.username)); user != nil {
+				udp.user = user
+			} else {
+				// We can't use SendRecv here as it would deadlock
+				ch := make(chan udpapi.APIReply, 1)
+				udp.sendQueueCh <- paramSet{
+					cmd:    "USER",
+					params: paramMap{"user": decrypt(c.username)},
+					ch:     ch,
+				}
+				reply := <-ch
 
-			if reply != nil {
-				uid, _ := parseUserReply(reply)
-				udp.user = uid.User()
+				if reply != nil {
+					uid, _ := parseUserReply(reply)
+					udp.user = uid.User()
+				}
 			}
 		}
 
