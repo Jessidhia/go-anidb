@@ -92,12 +92,12 @@ func (udp *udpWrap) ReAuth() udpapi.APIReply {
 	defer udp.credLock.Unlock()
 
 	if c := udp.credentials; c != nil {
-		logRequest(paramSet{cmd: "AUTH", params: paramMap{"user": decrypt(c.username)}})
+		udp.logRequest(paramSet{cmd: "AUTH", params: paramMap{"user": decrypt(c.username)}})
 		r := udp.AniDBUDP.Auth(
 			decrypt(c.username),
 			decrypt(c.password),
 			decrypt(c.udpKey))
-		logReply(r)
+		udp.logReply(r)
 
 		err := r.Error()
 
@@ -185,7 +185,7 @@ func (adb *AniDB) Logout() error {
 
 	if adb.udp.connected {
 		adb.udp.connected = false
-		logRequest(paramSet{cmd: "LOGOUT"})
+		adb.udp.logRequest(paramSet{cmd: "LOGOUT"})
 		return adb.udp.Logout()
 	}
 	return nil

@@ -6,7 +6,6 @@ import (
 	"github.com/Kovensky/go-anidb/udp"
 	"github.com/Kovensky/go-fscache"
 	"image"
-	"log"
 	"regexp"
 	"sort"
 	"strconv"
@@ -300,7 +299,7 @@ func (adb *AniDB) parseFileResponse(f **File, reply udpapi.APIReply, calledFromF
 			if partial {
 				if calledFromFIDsByGID {
 					epno = test
-					log.Printf("UDP!!! FID %d is only part of episode %s with no complementary files", fid, epno)
+					adb.Logger.Printf("UDP!!! FID %d is only part of episode %s with no complementary files", fid, epno)
 				} else if len(test) == 1 && test[0].Start.Number == test[0].End.Number {
 					fids := []int{}
 

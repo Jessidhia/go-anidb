@@ -2,6 +2,8 @@
 package anidb
 
 import (
+	"io/ioutil"
+	"log"
 	"time"
 )
 
@@ -19,16 +21,19 @@ import (
 // by a previous Auth() call.
 type AniDB struct {
 	Timeout time.Duration // Timeout for the various calls (default: 45s)
+	Logger  *log.Logger   // Logger where HTTP/UDP traffic is logged
 
 	udp *udpWrap
 }
 
 // Initialises a new AniDB.
 func NewAniDB() *AniDB {
-	return &AniDB{
+	ret := &AniDB{
 		Timeout: 45 * time.Second,
-		udp:     newUDPWrap(),
+		Logger:  log.New(ioutil.Discard, "", log.LstdFlags),
 	}
+	ret.udp = newUDPWrap(ret)
+	return ret
 }
 
 func (adb *AniDB) User() *User {

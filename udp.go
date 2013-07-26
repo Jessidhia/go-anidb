@@ -2,7 +2,6 @@ package anidb
 
 import (
 	"github.com/Kovensky/go-anidb/udp"
-	"log"
 	"sync"
 	"time"
 )
@@ -39,6 +38,8 @@ type paramSet struct {
 type udpWrap struct {
 	*udpapi.AniDBUDP
 
+	adb *AniDB
+
 	sendLock    sync.Mutex
 	sendQueueCh chan paramSet
 
@@ -49,9 +50,10 @@ type udpWrap struct {
 	user *User
 }
 
-func newUDPWrap() *udpWrap {
+func newUDPWrap(adb *AniDB) *udpWrap {
 	u := &udpWrap{
 		AniDBUDP:    udpapi.NewAniDBUDP(),
+		adb:         adb,
 		sendQueueCh: make(chan paramSet, 10),
 	}
 	go u.sendQueue()
@@ -92,17 +94,17 @@ func (r *bannedAPIReply) Error() error {
 
 var bannedReply udpapi.APIReply = &bannedAPIReply{}
 
-func logRequest(set paramSet) {
+func (udp *udpWrap) logRequest(set paramSet) {
 	switch set.cmd {
 	case "AUTH":
-		log.Printf("UDP>>> AUTH user=%s\n", set.params["user"])
+		udp.adb.Logger.Printf("UDP>>> AUTH user=%s\n", set.params["user"])
 	default:
-		log.Printf("UDP>>> %s %s\n", set.cmd, udpapi.ParamMap(set.params).String())
+		udp.adb.Logger.Printf("UDP>>> %s %s\n", set.cmd, udpapi.ParamMap(set.params).String())
 	}
 }
 
-func logReply(reply udpapi.APIReply) {
-	log.Printf("UDP<<< %d %s\n", reply.Code(), reply.Text())
+func (udp *udpWrap) logReply(reply udpapi.APIReply) {
+	udp.adb.Logger.Printf("UDP<<< %d %s\n", reply.Code(), reply.Text())
 }
 
 func (udp *udpWrap) sendQueue() {
@@ -116,7 +118,7 @@ func (udp *udpWrap) sendQueue() {
 			continue
 		}
 
-		logRequest(set)
+		udp.logRequest(set)
 		reply := <-udp.AniDBUDP.SendRecv(set.cmd, udpapi.ParamMap(set.params))
 
 		if reply.Error() == udpapi.TimeoutError {
@@ -125,7 +127,7 @@ func (udp *udpWrap) sendQueue() {
 			if wait > time.Minute {
 				wait = time.Minute
 			}
-			log.Printf("UDP--- Timeout; waiting %s before retry", wait)
+			udp.adb.Logger.Printf("UDP--- Timeout; waiting %s before retry", wait)
 
 			delete(set.params, "s")
 			delete(set.params, "tag")
@@ -133,7 +135,7 @@ func (udp *udpWrap) sendQueue() {
 			time.Sleep(wait)
 			goto Retry
 		}
-		logReply(reply)
+		udp.logReply(reply)
 
 		wait = initialWait
 

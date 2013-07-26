@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"github.com/Kovensky/go-anidb/titles"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"time"
@@ -38,7 +37,9 @@ func TitlesUpToDate() (ok bool) {
 // Downloads a new anime-titles database if the database is outdated.
 //
 // Saves the database as anime-titles.dat.gz in the cache dir.
-func UpdateTitles() error {
+func (adb *AniDB) UpdateTitles() error {
+	// needs the AniDB for the Logger
+
 	// too new, no need to update
 	if TitlesUpToDate() {
 		return nil
@@ -55,21 +56,21 @@ func UpdateTitles() error {
 
 	c := &http.Client{Transport: &http.Transport{DisableCompression: true}}
 
-	log.Printf("HTTP>>> %s", titles.DataDumpURL)
+	adb.Logger.Printf("HTTP>>> %s", titles.DataDumpURL)
 
 	resp, err := c.Get(titles.DataDumpURL)
 	if err != nil {
-		log.Printf("HTTP<<< %s", resp.Status)
+		adb.Logger.Printf("HTTP<<< %s", resp.Status)
 		return err
 	}
 	defer resp.Body.Close()
 
 	buf := bytes.Buffer{}
-	log.Printf("HTTP--- %s", resp.Status)
+	adb.Logger.Printf("HTTP--- %s", resp.Status)
 
 	_, err = io.Copy(&buf, resp.Body)
 	if err != nil {
-		log.Printf("HTTP--- %v", err)
+		adb.Logger.Printf("HTTP--- %v", err)
 		return err
 	}
 
@@ -84,7 +85,7 @@ func UpdateTitles() error {
 	}
 
 	defer func() {
-		log.Printf("HTTP<<< Titles version %s", titlesDB.UpdateTime)
+		adb.Logger.Printf("HTTP<<< Titles version %s", titlesDB.UpdateTime)
 	}()
 	return RefreshTitles()
 }
