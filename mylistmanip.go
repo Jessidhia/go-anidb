@@ -67,11 +67,10 @@ func (set *MyListSet) update(uid UID, f *File, lid LID) {
 	eg.Add(f.EpisodeNumber)
 	mla.EpisodesPerGroup[f.GID] = eg
 
+	newState := MyListStateUnknown
 	if set != nil {
 		if set.State != nil {
-			es := mla.EpisodesWithState[*set.State]
-			es.Add(f.EpisodeNumber)
-			mla.EpisodesWithState[*set.State] = es
+			newState = *set.State
 		}
 
 		if set.Watched != nil && *set.Watched ||
@@ -79,6 +78,10 @@ func (set *MyListSet) update(uid UID, f *File, lid LID) {
 			mla.WatchedEpisodes.Add(f.EpisodeNumber)
 		}
 	}
+
+	es := mla.EpisodesWithState[newState]
+	es.Add(f.EpisodeNumber)
+	mla.EpisodesWithState[newState] = es
 
 	Cache.Set(mla, "mylist-anime", uid, f.AID)
 	Cache.Chtime(mla.Cached, "mylist-anime", uid, f.AID)
