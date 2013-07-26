@@ -77,22 +77,15 @@ func (adb *AniDB) MyListAnime(aid AID) <-chan *MyListAnime {
 			ep := <-adb.EpisodeByID(r.EID)
 			list := misc.EpisodeToList(&ep.Episode)
 
-			switch r.MyListState {
-			case MyListStateUnknown:
-				entry.UnknownState = list
-			case MyListStateHDD:
-				entry.OnHDD = list
-			case MyListStateCD:
-				entry.OnCD = list
-			case MyListStateDeleted:
-				entry.Deleted = list
+			entry.EpisodesWithState = MyListStateMap{
+				r.MyListState: list,
 			}
 
 			if !r.DateWatched.IsZero() {
 				entry.WatchedEpisodes = list
 			}
 
-			entry.EpisodesPerGroup = map[GID]misc.EpisodeList{
+			entry.EpisodesPerGroup = GroupEpisodes{
 				r.GID: list,
 			}
 		case 312:
@@ -173,10 +166,12 @@ func (adb *AniDB) parseMylistAnime(reply udpapi.APIReply) *MyListAnime {
 	}
 
 	return &MyListAnime{
-		UnknownState: misc.ParseEpisodeList(parts[2]),
-		OnHDD:        misc.ParseEpisodeList(parts[3]),
-		OnCD:         misc.ParseEpisodeList(parts[4]),
-		Deleted:      misc.ParseEpisodeList(parts[5]),
+		EpisodesWithState: MyListStateMap{
+			MyListStateUnknown: misc.ParseEpisodeList(parts[2]),
+			MyListStateHDD:     misc.ParseEpisodeList(parts[3]),
+			MyListStateCD:      misc.ParseEpisodeList(parts[4]),
+			MyListStateDeleted: misc.ParseEpisodeList(parts[5]),
+		},
 
 		WatchedEpisodes: misc.ParseEpisodeList(parts[6]),
 
