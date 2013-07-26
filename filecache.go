@@ -116,7 +116,7 @@ func (adb *AniDB) FileByID(fid FID) <-chan *File {
 	return ch
 }
 
-var validEd2kHash = regexp.MustCompile(`\A[:xdigit:]{32}\z`)
+var validEd2kHash = regexp.MustCompile(`\A[[:xdigit:]]{32}\z`)
 
 // Retrieves a File by its Ed2kHash + Filesize combination. Uses the UDP API.
 func (adb *AniDB) FileByEd2kSize(ed2k string, size int64) <-chan *File {
