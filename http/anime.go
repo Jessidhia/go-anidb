@@ -33,8 +33,16 @@ const (
 	SyoboiFormat       = "http://cal.syoboi.jp/tid/%v/time"                             // Type 8
 	AllCinemaFormat    = "http://www.allcinema.net/prog/show_c.php?num_c=%v"            // Type 9
 	AnisonFormat       = "http://anison.info/data/program/%v.html"                      // Type 10
+	LainGrJpFormat     = "http://lain.gr.jp/%v"                                         // Type 11
+	_                                                                                   // Type 12
+	_                                                                                   // Type 13
 	VNDBFormat         = "http://vndb.org/v%v"                                          // Type 14
 	MaruMeganeFormat   = "http://www.anime.marumegane.com/%v.html"                      // Type 15
+	_                                                                                   // Type 16
+	TVAnimationMuseum  = "http://home-aki.cool.ne.jp/anime-list/%s.htm"                 // Type 17 (broken)
+	_                                                                                   // Type 18
+	WikiKoreanformat   = "http://ko.wikipedia.org/wiki/%v"                              // Type 19
+	WikiChineseFormat  = "http://zh.wikipedia.org/wiki/%v"                              // Type 20
 )
 
 const (
@@ -65,7 +73,7 @@ func GetAnime(AID int) (a Anime, err error) {
 
 		for _, r := range a.Resources {
 			switch r.Type {
-			case 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 14, 15:
+			case 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 15, 17, 19, 20:
 				// documentation knows about these
 			default:
 				log.Printf("HTTP -- Anime %d (%s) has unknown resource type %d", a.ID, title, r.Type)
@@ -155,7 +163,7 @@ type Category struct {
 
 type ExternalEntity struct {
 	Identifiers []string `xml:"identifier"`
-	URL         []string `xml:"url"` // Used for types 5 and 6
+	URL         []string `xml:"url"` // Used for some types
 }
 
 // Completely undocumented.
@@ -169,7 +177,7 @@ type ExternalEntity struct {
 //
 // Type 3 is the AnimeNfo ID tuple.
 //
-// Type 4 is the official japanese webpage.
+// Type 4 is the official japanese webpage. URL may contain additional URLs (official PV, etc)
 //
 // Type 5 is the official english webpage.
 //
@@ -183,9 +191,17 @@ type ExternalEntity struct {
 //
 // Type 10 is the anison.info ID.
 //
+// Type 11 is the lain.gr.jp path.
+//
 // Type 14 is the VNDB ID.
 //
 // Type 15 is the MaruMegane ID.
+//
+// Type 17 would be the TV Animation Museum identifier, but the website is no more.
+//
+// Type 19 is the korean wikipedia page name.
+//
+// Type 20 is the chinese wikipedia page name.
 type Resource struct {
 	Type           int              `xml:"type,attr"`
 	ExternalEntity []ExternalEntity `xml:"externalentity"`
